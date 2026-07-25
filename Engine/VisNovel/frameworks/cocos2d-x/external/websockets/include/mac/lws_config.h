@@ -6,7 +6,7 @@
 	#endif
 #endif
 
-#define LWS_INSTALL_DATADIR "/Users/james/Project/cocos2d-x-3rd-party-libs-src/contrib/install-mac/x86_64/share"
+#define LWS_INSTALL_DATADIR "/Users/miraihasegawa/projects/pini-engine/build/deps-apple/out/lws/share"
 
 /* Define to 1 to use wolfSSL/CyaSSL as a replacement for OpenSSL.
  * LWS_OPENSSL_SUPPORT needs to be set also for this to work. */
@@ -33,10 +33,10 @@
 #define LWS_LIBRARY_VERSION_NUMBER (LWS_LIBRARY_VERSION_MAJOR*1000000)+(LWS_LIBRARY_VERSION_MINOR*1000)+LWS_LIBRARY_VERSION_PATCH
 
 /* The current git commit hash that we're building from */
-#define LWS_BUILD_HASH "james@James-Chen.local-v3.4-139-gbdcf7f8"
+#define LWS_BUILD_HASH "miraihasegawa@Miraiui-MacBookPro.local-"
 
 /* Build with OpenSSL support */
-#define LWS_OPENSSL_SUPPORT
+/* #undef LWS_OPENSSL_SUPPORT */
 
 /* The client should load and trust CA root certs it finds in the OS */
 #define LWS_SSL_CLIENT_USE_OS_CA_CERTS
@@ -54,7 +54,7 @@
 /* #undef LWS_USE_LIBUV */
 
 /* Build with support for ipv6 */
-#define LWS_USE_IPV6
+/* #undef LWS_USE_IPV6 */
 
 /* Build with support for UNIX domain socket */
 /* #undef LWS_USE_UNIX_SOCK */
@@ -69,7 +69,7 @@
 #define LWS_NO_DAEMONIZE
 
 /* Build without server support */
-#define LWS_NO_SERVER
+/* #undef LWS_NO_SERVER */
 
 /* Build without client support */
 /* #undef LWS_NO_CLIENT */
@@ -85,8 +85,8 @@
 
 /* SSL server using ECDH certificate */
 /* #undef LWS_SSL_SERVER_WITH_ECDH_CERT */
-#define LWS_HAVE_SSL_CTX_set1_param
-#define LWS_HAVE_X509_VERIFY_PARAM_set1_host
+/* #undef LWS_HAVE_SSL_CTX_set1_param */
+/* #undef LWS_HAVE_X509_VERIFY_PARAM_set1_host */
 
 /* #undef LWS_HAVE_UV_VERSION_H */
 
@@ -94,7 +94,7 @@
 /* #undef LWS_WITH_CGI */
 
 /* whether the Openssl is recent enough, and / or built with, ecdh */
-#define LWS_HAVE_OPENSSL_ECDH_H
+/* #undef LWS_HAVE_OPENSSL_ECDH_H */
 
 /* HTTP Proxy support */
 /* #undef LWS_WITH_HTTP_PROXY */
