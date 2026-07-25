@@ -90,7 +90,7 @@ class GraphicsProtocolObject(object):
 			if self.origin1:
 				thumbPos = QPoint( -self.size1.width()/2 - self.size3.width()/4 , -self.size1.height()/2  - self.size3.height()/4 )
 
-				painter.setRenderHint( QPainter.HighQualityAntialiasing )
+				painter.setRenderHint( QPainter.Antialiasing )  # Qt6: HighQualityAntialiasing 제거됨 (Antialiasing 과 동일 취급이었다)
 				painter.drawImage(self.boundingRect(),self.origin1,self.origin1.rect())
 				painter.drawImage(QRect(thumbPos,self.size3),self.origin3,self.origin3.rect())
 			return True
@@ -189,7 +189,7 @@ class GraphicsProtocolObject(object):
 		def paint(self, painter, option, widget):
 			if self.origin:
 				painter.setOpacity(self.opacity)
-				painter.setRenderHint( QPainter.HighQualityAntialiasing )
+				painter.setRenderHint( QPainter.Antialiasing )  # Qt6: HighQualityAntialiasing 제거됨 (Antialiasing 과 동일 취급이었다)
 				painter.drawImage(self.boundingRect(),self.color,self.origin.rect())
 			return True
 
@@ -228,7 +228,7 @@ class GraphicsProtocolObject(object):
 			painter.setOpacity(self.opacity)
 			painter.setPen(QPen(self.color))
 			painter.setFont(self.font)
-			painter.setRenderHint( QPainter.HighQualityAntialiasing )
+			painter.setRenderHint( QPainter.Antialiasing )  # Qt6: HighQualityAntialiasing 제거됨 (Antialiasing 과 동일 취급이었다)
 
 			painter.drawText(self.boundingRect(),Qt.AlignCenter,self.text)
 			return True

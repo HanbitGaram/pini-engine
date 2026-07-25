@@ -378,7 +378,7 @@ class DesignerRuler(QWidget):
 		painter = QPainter(self);
 		pen = QPen(QColor(130,130,130),0);
 
-		painter.setRenderHints(QPainter.TextAntialiasing | QPainter.HighQualityAntialiasing)
+		painter.setRenderHints(QPainter.TextAntialiasing | QPainter.Antialiasing)
 		painter.setPen(pen);
 		rulerRect = self.rect();
 
