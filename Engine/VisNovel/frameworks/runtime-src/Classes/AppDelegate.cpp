@@ -134,6 +134,25 @@ static int register_all_packages()
 
 bool AppDelegate::applicationDidFinishLaunching()
 {
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
+	/* cocos 의 mac 기본 쓰기 경로는 ~/Documents/ 인데(CCFileUtils-apple.mm), 두 가지 문제가 있다.
+	   1) macOS 는 ~/Documents 를 개인정보 보호(TCC)로 보호한다. 권한이 없으면 파일 쓰기가
+	      조용히 실패해서, 에디터가 보낸 리소스가 하나도 저장되지 않고 테스트 실행이 먹통이 된다.
+	   2) 에디터는 appdirs 의 user_data_dir("pini_remote") 즉
+	      ~/Library/Application Support/pini_remote 를 쓴다. 서로 다른 곳을 보고 있었다.
+	   Application Support 로 맞추면 둘 다 해결된다 (앱 데이터를 두기에도 여기가 맞다).
+	   Lua 가 getWritablePath() 를 쓰기 전에, 아래 아무 초기화보다도 먼저 지정해야 한다. */
+	{
+		const char* home = getenv("HOME");
+		if (home != nullptr)
+		{
+			std::string appSupport = std::string(home) + "/Library/Application Support/pini_remote/";
+			FileUtils::getInstance()->createDirectory(appSupport);
+			FileUtils::getInstance()->setWritablePath(appSupport);
+		}
+	}
+#endif
+
     // set default FPS
     Director::getInstance()->setAnimationInterval(1.0 / 60.0f);
 

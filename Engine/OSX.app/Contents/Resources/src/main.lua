@@ -1,3 +1,17 @@
+-- [LuaJIT 2.1 호환 shim]
+-- 이 코드베이스는 LuaJIT 2.0 시절에 작성되어 Lua 5.0 때 이름들을 그대로 쓴다.
+-- LuaJIT 2.1 은 그 별칭들을 제거했다. 없을 때만 되살린다 (Lua 5.1 이나 LuaJIT 2.0 에서는 no-op).
+--
+-- 이게 없으면:
+--   * base64.lua 의 to_base64() 가 math.mod 에서 죽는다
+--     -> 엔진이 에디터의 'flst'(파일 체크섬 목록) 요청에 응답하지 못하고
+--        'ulst' 를 보내지 않아 테스트 실행이 통째로 멈춘다. (증상: 실행해도 아무 일도 안 남)
+--   * PiniAPI 의 터치 처리와 vendored cocos lua 프레임워크가 table.getn 에서 죽는다.
+if math.mod == nil then math.mod = math.fmod end
+if table.getn == nil then table.getn = function(t) return #t end end
+if table.setn == nil then table.setn = function(t, n) end end
+if string.gfind == nil then string.gfind = string.gmatch end
+
 local fileUtil = cc.FileUtils:getInstance()
 fileUtil:addSearchPath("src")
 fileUtil:addSearchPath("res")

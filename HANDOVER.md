@@ -659,7 +659,40 @@ Antialiasing 과 동일하게 취급됐다). 미리보기 아이템들의 `paint
 이런 "Qt6 에서 사라진 상수/속성" 을 한 번에 훑으려면 소스의 `Q어떤클래스.속성` 을 전부 뽑아
 PySide6 에 실제로 존재하는지 `hasattr` 로 확인하면 된다. 지금은 남은 것이 없다.
 
-### 10.12 남은 것 / 알려진 제약
+### 10.12 "테스트 실행" 이 아무 반응도 없던 이유 — 두 가지가 겹쳐 있었다
+
+**(1) LuaJIT 2.0 -> 2.1 로 올리면서 Lua 5.0 시절 별칭이 사라졌다 (§9.3 의 여파)**
+엔진 Lua 는 2015년 LuaJIT 2.0 기준으로 작성되어 `math.mod`, `table.getn` 을 쓴다.
+**LuaJIT 2.1 은 이 별칭들을 제거했다.** (Lua 5.1 과 LuaJIT 2.0 에는 있다.)
+- `src/base64.lua` 의 `to_base64()` 가 `math.mod` 에서 죽는다.
+  그래서 엔진이 에디터의 **`flst`(파일 체크섬 목록) 요청에 응답하지 못하고 `ulst` 를 보내지
+  않는다.** 에디터는 응답을 기다리며 멈추고, 사용자 눈에는 "실행해도 아무 일도 안 남" 으로 보인다.
+- `table.getn` 은 PiniAPI 의 터치 처리와 vendored cocos lua 프레임워크에서 29곳 쓰인다.
+
+호출부 29곳을 고치는 대신 **엔진 진입점(`src/main.lua`) 맨 위에 호환 shim** 을 넣었다
+(없을 때만 정의하므로 Lua 5.1 / LuaJIT 2.0 에서는 no-op).
+에디터 프리뷰는 lupa 의 Lua 5.1 을 쓰는데 거기엔 이 함수들이 살아 있어 영향이 없다.
+
+> **다음에 Lua VM 을 건드릴 때 반드시 확인할 것:** 런타임을 바꾸면 표준 라이브러리에서
+> 조용히 사라지는 함수가 있다. 엔진과 에디터 프리뷰가 서로 다른 Lua 를 쓰고 있어서
+> "에디터에서는 되는데 엔진에서만 안 되는" 형태로 나타난다.
+
+**(2) 엔진과 에디터가 서로 다른 폴더를 보고 있었다**
+- cocos 의 mac 기본 쓰기 경로는 `~/Documents/` 다 (`CCFileUtils-apple.mm`).
+  macOS 는 이 폴더를 개인정보 보호(TCC)로 막기 때문에 파일 쓰기가 조용히 실패할 수 있다.
+- 반면 에디터는 `appdirs.user_data_dir("pini_remote")` =
+  `~/Library/Application Support/pini_remote` 에 빌드 산출물을 복사한다.
+→ `AppDelegate::applicationDidFinishLaunching` 맨 앞에서 mac 일 때만
+  `FileUtils::setWritablePath()` 로 Application Support 를 지정해 둘을 일치시켰다.
+  (cocos 를 고치지 않고 게임 코드에서 해결. iOS 는 샌드박스 안 `~/Documents` 가 정상이므로 그대로 둔다.)
+
+검증: `PATH` -> `flst` -> `ulst` -> `tran` -> `ufin` 이 완주하고 엔진이 씬을 시작한다.
+
+디버깅 메모: 엔진은 stdout 을 자체 콘솔 창으로 리디렉션해서 터미널에서는 로그가 안 보인다.
+Lua 쪽을 파고들어야 하면 `src/main.lua` 에 임시로 파일 로깅(`io.open("/tmp/...","a")`)을
+넣는 게 가장 빠르다. `-write-debug-log` 옵션은 거의 아무것도 남기지 않는다.
+
+### 10.13 남은 것 / 알려진 제약
 - **`--fullscreen` 이 mac 에서 동작하지 않는다.** 엔진 mac 타겟이 인자를 읽지 않는다
   (`AppDelegate(bool fullscreen = false)` 기본값 고정). 지원하려면 `mac/SimulatorApp.mm` 에서
   인자를 파싱해 `new AppDelegate(fullscreen)` 으로 넘겨야 한다.
