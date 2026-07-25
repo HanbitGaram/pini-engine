@@ -30,12 +30,28 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXTERNAL="$REPO_ROOT/Engine/VisNovel/frameworks/cocos2d-x/external"
-WORK="$REPO_ROOT/build/deps-apple"          # 다운로드 + 빌드 트리 (.gitignore 대상)
-SRC="$WORK/src"
-OUT="$WORK/out"
 
 ARCHS="${ARCHS:-arm64}"
+PLATFORM="${PLATFORM:-mac}"          # mac | ios
 DEPLOY_TARGET="${DEPLOY_TARGET:-11.0}"
+
+SRC="$REPO_ROOT/build/deps-apple/src"           # 소스 다운로드는 플랫폼 공용
+WORK="$REPO_ROOT/build/deps-apple/$PLATFORM"    # 빌드 트리는 플랫폼별 (.gitignore 대상)
+OUT="$WORK/out"
+
+# ---- iOS 모드 -------------------------------------------------------------
+# iOS 는 대부분의 라이브러리가 플랫폼별 헤더(external/<lib>/include/ios)를 따로 갖고 있어서
+# 2016년산 프리빌트와 짝이 맞는다. 문제는 **헤더가 전 플랫폼 공용인 두 개**다:
+#   external/chipmunk/include/chipmunk   (mac 용으로 7.0.3 으로 갱신됨)
+#   external/lua/luajit/include          (mac 용으로 LuaJIT 2.1 로 갱신됨)
+# 이 둘은 iOS 프리빌트도 같이 올려 주지 않으면 헤더/라이브러리가 어긋난다.
+# (실제로 LuaJIT 2.0 프리빌트에는 luaL_setfuncs 가 없어 iOS 링크가 깨진다.)
+#
+# 사용법: PLATFORM=ios scripts/build-deps-apple.sh chipmunk luajit
+if [ "$PLATFORM" = "ios" ]; then
+  DEPLOY_TARGET="${DEPLOY_TARGET_IOS:-15.0}"
+  IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+fi
 
 # ---- 고정 버전 -------------------------------------------------------------
 # 갱신할 때는 반드시 헤더도 같이 갱신되므로(이 스크립트가 자동으로 한다) 버전만 올리면 된다.
@@ -60,6 +76,15 @@ CMAKE_COMMON=(
   -DBUILD_SHARED_LIBS=OFF
   -DCMAKE_POLICY_VERSION_MINIMUM=3.5   # cmake 4 는 cmake<3.5 를 요구하는 옛 프로젝트를 거부한다
 )
+if [ "$PLATFORM" = "ios" ]; then
+  CMAKE_COMMON+=(
+    -DCMAKE_SYSTEM_NAME=iOS
+    -DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH"
+  )
+fi
+
+# 설치 위치: mac 은 prebuilt/mac, iOS 는 prebuilt/ios
+PREBUILT_DIR="$PLATFORM"
 
 log()  { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
 fetch() { # fetch <url> <tarball-name>
@@ -76,9 +101,9 @@ unpack() { # unpack <tarball> <expected-dir>
 }
 install_lib() { # install_lib <built.a> <external-subdir> <dest-name>
   local built="$1" sub="$2" dest="$3"
-  mkdir -p "$EXTERNAL/$sub/prebuilt/mac"
-  cp "$built" "$EXTERNAL/$sub/prebuilt/mac/$dest"
-  printf '   -> %s  (%s)\n' "$sub/prebuilt/mac/$dest" "$(lipo -info "$EXTERNAL/$sub/prebuilt/mac/$dest" | sed 's/.*: //')"
+  mkdir -p "$EXTERNAL/$sub/prebuilt/$PREBUILT_DIR"
+  cp "$built" "$EXTERNAL/$sub/prebuilt/$PREBUILT_DIR/$dest"
+  printf '   -> %s  (%s)\n' "$sub/prebuilt/$PREBUILT_DIR/$dest" "$(lipo -info "$EXTERNAL/$sub/prebuilt/$PREBUILT_DIR/$dest" | sed 's/.*: //')"
 }
 
 # ---------------------------------------------------------------- libpng ----
@@ -183,8 +208,11 @@ build_chipmunk() {
     -DBUILD_DEMOS=OFF -DINSTALL_DEMOS=OFF -DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DINSTALL_STATIC=ON
   cmake --build "$WORK/chipmunk" --target install
   install_lib "$OUT/chipmunk/lib/libchipmunk.a" chipmunk libchipmunk.a
-  rm -rf "$EXTERNAL/chipmunk/include/chipmunk"
-  cp -R "$OUT/chipmunk/include/chipmunk" "$EXTERNAL/chipmunk/include/chipmunk"
+  # chipmunk 헤더는 external/chipmunk/include 하나를 전 플랫폼이 공유한다. mac 빌드 때만 갱신.
+  if [ "$PLATFORM" = "mac" ]; then
+    rm -rf "$EXTERNAL/chipmunk/include/chipmunk"
+    cp -R "$OUT/chipmunk/include/chipmunk" "$EXTERNAL/chipmunk/include/chipmunk"
+  fi
 }
 
 # ----------------------------------------------------------------- glfw3 ----
@@ -232,12 +260,27 @@ build_luajit() {
   if [ ! -d "$SRC/LuaJIT" ]; then
     git clone --depth 1 --branch "$LUAJIT_BRANCH" https://github.com/LuaJIT/LuaJIT.git "$SRC/LuaJIT"
   fi
-  ( cd "$SRC/LuaJIT" && make clean >/dev/null 2>&1 || true
-    make -j"$(sysctl -n hw.ncpu)" TARGET_SYS=Darwin MACOSX_DEPLOYMENT_TARGET="$DEPLOY_TARGET" )
+  if [ "$PLATFORM" = "ios" ]; then
+    # iOS 크로스 컴파일. LuaJIT 은 iOS 에서 JIT 을 못 쓰고 인터프리터로 동작한다(정상).
+    local ICC; ICC="$(xcrun --sdk iphoneos --find clang)"
+    ( cd "$SRC/LuaJIT" && make clean >/dev/null 2>&1 || true
+      make -j"$(sysctl -n hw.ncpu)" \
+        HOST_CC="clang" \
+        CC=clang \
+        CROSS="$(dirname "$ICC")/" \
+        TARGET_FLAGS="-arch arm64 -isysroot $IOS_SDK_PATH -mios-version-min=$DEPLOY_TARGET" \
+        TARGET_SYS=iOS )
+  else
+    ( cd "$SRC/LuaJIT" && make clean >/dev/null 2>&1 || true
+      make -j"$(sysctl -n hw.ncpu)" TARGET_SYS=Darwin MACOSX_DEPLOYMENT_TARGET="$DEPLOY_TARGET" )
+  fi
   install_lib "$SRC/LuaJIT/src/libluajit.a" lua/luajit libluajit.a
-  cp "$SRC/LuaJIT/src/lua.h" "$SRC/LuaJIT/src/lauxlib.h" "$SRC/LuaJIT/src/lualib.h" \
-     "$SRC/LuaJIT/src/luaconf.h" "$SRC/LuaJIT/src/luajit.h" "$SRC/LuaJIT/src/lua.hpp" \
-     "$EXTERNAL/lua/luajit/include/"
+  # 헤더는 전 플랫폼 공용이라 한 번만 갱신하면 된다 (mac 빌드 때).
+  if [ "$PLATFORM" = "mac" ]; then
+    cp "$SRC/LuaJIT/src/lua.h" "$SRC/LuaJIT/src/lauxlib.h" "$SRC/LuaJIT/src/lualib.h" \
+       "$SRC/LuaJIT/src/luaconf.h" "$SRC/LuaJIT/src/luajit.h" "$SRC/LuaJIT/src/lua.hpp" \
+       "$EXTERNAL/lua/luajit/include/"
+  fi
 }
 
 ALL=(png jpeg tiff webp freetype chipmunk glfw websockets luajit)

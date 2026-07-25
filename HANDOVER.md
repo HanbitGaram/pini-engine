@@ -11,6 +11,8 @@
   `scripts/build-deps-apple.sh` + `scripts/build-mac.sh` 두 개로 재현 가능.
 - **Phase 2 (에디터 py3 / PySide6 포팅) 완료. → 상세는 §10 참조.**
   `scripts/build-editor-natives.sh` 로 atl.so 를 만든 뒤 `Editor/pini` 에서 `python3 main.py`.
+- **Phase 3 (iOS arm64 실기기 빌드) 완료. → 상세는 §11 참조.** `scripts/build-ios.sh`.
+- 다음 작업: **Phase 4 (Android)**. §6 Phase 4 참조.
 - 로컬 Python 3.13.7 (`/Library/Frameworks/Python.framework/Versions/3.13/bin/python3`)에
   PySide6 6.11.1, lupa 2.8, Pillow, openpyxl, appdirs, ply 설치 완료 (pip 네트워크 사용 가능)
   + cmake 4.4.0 / ninja 1.13 (pip 로 설치, 의존성 빌드에 사용)
@@ -301,7 +303,10 @@ Apache HttpClient jar(`android-async-http`, `httpclient-4.4.1.1` — API 23+에�
 
 ### Phase 2 — 에디터 py3/PySide6 포팅 — ✅ **완료 (2026-07-25). 결과는 §10 참조**
 
-### Phase 3 — iOS
+### Phase 3 — iOS — ✅ **완료 (2026-07-26). 결과는 §11 참조**
+
+아래는 착수 당시의 계획이며, 실제 결과와 어긋난 부분은 §11에 정리했다.
+
 1. deployment target 15.0으로 통일 상향(메인+서브프로젝트 3개), `VALID_ARCHS` 제거,
    `ARCHS=arm64`, `SDKROOT=iphoneos11.0` 하드코딩 제거
 2. **UIWebView 소스를 cocos 빌드에서 제외** (`cocos/ui/UIWebView*`, `UIWebViewImpl-ios.*`,
@@ -743,3 +748,80 @@ nil 이 되면 바로 다음 줄의 문자열 연결에서 죽어 역시 검은 
   바꿀 때는 정의부와 호출부를 같이 고칠 것.
 - Retina 에서의 좌표 계산(정수 나눗셈이 py3 에서 true division 이 된 곳)은 실제 GUI 조작 중
   드러날 수 있다. 현재까지 구동/컴파일 경로에서는 문제가 없었다.
+
+
+## 11. Phase 3 수행 결과 — iOS arm64 (2026-07-26)
+
+### 11.1 결과
+`pini_remote-mobile.app` 이 **arm64 실기기용으로 서명 없이 빌드된다** (minos 15.0 / SDK 26.2).
+비-시스템 동적 의존성 없음.
+
+```
+scripts/build-ios.sh          # 앱 전체 (Release, 서명 없음)
+scripts/build-ios.sh "libcocos2d iOS"   # 특정 타겟만
+```
+산출물: `.../proj.ios_mac/build/Release-iphoneos/pini_remote-mobile.app`
+
+시뮬레이터는 여전히 불가능하다 (§4.2: cocos 의 iOS 프리빌트에 arm64 시뮬레이터 슬라이스가 없다).
+
+### 11.2 사전조사(§4.4) 대비 정정 — **예상보다 훨씬 쉬웠다**
+- **UIWebView / MPMoviePlayerController 는 그냥 컴파일된다.** §4.4-5,6 은 "SDK에서 제거된 API라
+  컴파일 실패" 로 봤지만, iOS 26.2 SDK 는 여전히 deprecated 상태로 선언을 유지하고 있어
+  `UIWebView.mm`, `UIWebViewImpl-ios.mm`, `UIVideoPlayer-ios.mm` 모두 문제없이 빌드된다.
+  → 빌드를 위해 cocos 소스를 들어낼 필요가 없었다. **다만 앱스토어 제출 시에는 여전히
+  걸림돌이다 (§11.5 참조).**
+- cocos2d-x 본체(856파일)와 lua-bindings, libsimulator 모두 **소스 수정 0건**으로 iOS arm64 빌드 성공.
+  Phase 1 에서 mac 용으로 고친 것들(audio shim, iconv 캐스팅, glfw/chipmunk 대응)이 그대로 통했다.
+
+### 11.3 실제로 막혔던 것 — Phase 1 의 여파 하나
+링크 단계에서 미해결 심볼이 **`_luaL_setfuncs` 하나** 나왔다.
+
+원인: `external/chipmunk/include` 와 `external/lua/luajit/include` 는 **전 플랫폼 공용 디렉토리**다.
+Phase 1 에서 mac 용으로 이 헤더들을 chipmunk 7.0.3 / LuaJIT 2.1 로 갱신했는데,
+iOS 프리빌트는 2016년산(chipmunk 7.0.1 / LuaJIT 2.0) 그대로였다.
+LuaJIT 2.0 에는 `luaL_setfuncs` 가 없어서 헤더(2.1)와 라이브러리(2.0)가 어긋난 것이다.
+
+→ `scripts/build-deps-apple.sh` 에 **iOS 모드**를 추가해 이 둘을 iOS arm64 로 다시 만들었다:
+```
+PLATFORM=ios scripts/build-deps-apple.sh chipmunk luajit
+```
+- 헤더가 공용이므로 헤더 갱신은 mac 빌드 때만 한다 (스크립트가 알아서 구분).
+- LuaJIT iOS 는 크로스 컴파일이고 JIT 없이 인터프리터로 동작한다 (iOS 는 W^X 때문에 정상).
+- **다른 라이브러리(png/jpeg/tiff/webp/freetype/websockets/curl/openssl)는 건드릴 필요가 없다.**
+  `include/ios` 를 따로 갖고 있어서 2016년산 프리빌트와 짝이 맞기 때문이다.
+
+> 교훈: `external/<lib>/include` 아래에 플랫폼 디렉토리가 없는 라이브러리는 헤더가 공용이다.
+> 한 플랫폼에서 버전을 올리면 **모든 플랫폼의 프리빌트를 같이 올려야 한다.**
+> 지금 공용인 것은 chipmunk 와 lua/luajit 둘뿐이다. (Android 도 Phase 4 에서 같은 처리가 필요하다.)
+
+### 11.4 프로젝트/번들 정리
+- `IPHONEOS_DEPLOYMENT_TARGET` 6.0 → **15.0** (프로젝트 레벨 + iOS 타겟).
+- `VALID_ARCHS = "arm64 armv7"` → `ARCHS = arm64`. (VALID_ARCHS 는 Xcode 12 부터 폐기된 설정이고
+  armv7 은 현행 SDK 가 지원하지 않는다.)
+- 존재하지 않는 옛 SDK 절대경로 참조 8건 정리: `iPhoneOS7.0/7.1/8.0/8.1/8.4/9.3.sdk/...` →
+  `SDKROOT` 상대경로. `libiconv.dylib` → `libiconv.tbd`.
+  (Xcode 가 이름으로 찾아 주긴 했지만 GUI 에서 빨갛게 뜨고 다음 사람이 헷갈린다.)
+- `Info.plist`:
+  - `UIRequiredDeviceCapabilities` 의 **`opengles-1` → `opengles-2`**. 엔진은 GLES2 렌더러를
+    쓰는데 ES1.1 을 요구한다고 선언하고 있었다 (최신 기기 설치 차단 / 스토어 거부 사유).
+  - **`UILaunchStoryboardName` + `ios/LaunchScreen.storyboard` 신설.** 스토리보드가 없으면
+    iOS 가 최신 기기에서 앱을 레터박스로 축소해 띄우고 제출도 거부된다.
+  - 제출에 필요한 `CFBundleShortVersionString` 추가.
+- 서브프로젝트 3개의 `SDKROOT = iphoneos11.0` 하드코딩은 mac 과 같은 방식으로
+  `scripts/build-ios.sh` 의 커맨드라인 오버라이드로 처리했다 (vendored 프로젝트 파일 수정 최소화).
+
+### 11.5 남은 것 / 앱스토어 제출 전 필수 작업
+- **UIWebView 제거.** 빌드는 되지만 앱스토어는 UIWebView 를 포함한 바이너리를 거부한다
+  (ITMS-90809). 게임 코드는 UIWebView 를 쓰지 않으므로 cocos 빌드에서 들어내면 된다:
+  `cocos/ui/UIWebView*`, `UIWebViewImpl-ios.*` 를 `libcocos2d iOS` 타겟에서 제외하고,
+  lua-bindings 의 webview auto/manual 파일과 `lua_module_register` 의 등록도 함께 제거.
+  같은 방식으로 `UIVideoPlayer-ios.mm`(MPMoviePlayerController)도 정리하는 것이 좋다.
+  **실기기/제출 검증이 필요한 작업이라 이번 범위에서는 하지 않았다.**
+- **서명/프로비저닝.** 실제 `.ipa` 서명과 설치·제출은 사용자 Apple 계정이 필요하다.
+  현재 프로젝트에는 `DEVELOPMENT_TEAM = A7E8XURC34` 가 남아 있다 (2015년 팀 ID로 보인다).
+- **아이콘/런치 이미지 현대화.** 지금은 개별 PNG 목록(`CFBundleIconFiles`) 방식이다.
+  최신 방식은 Asset Catalog(`AppIcon`)이며, 제출 시 1024x1024 마케팅 아이콘이 필요하다.
+- **시뮬레이터 지원.** arm64 시뮬레이터 슬라이스가 없어 불가능하다. 필요하면 §4.7-5 대로
+  의존성을 iOS-simulator 까지 빌드해 xcframework 로 묶어야 한다.
+- 실기기에서의 **동작 검증은 아직 못 했다.** 빌드까지만 확인했다.
+  (에디터 ↔ 엔진 TCP 는 mac 에서 검증했고 프로토콜은 플랫폼 중립이다.)

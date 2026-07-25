@@ -56,17 +56,24 @@
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 스토리보드가 없으면 iOS 가 최신 기기에서 앱을 레터박스로 축소해 띄운다. -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
 	<key>UIPrerenderedIcon</key>
 	<true/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<dict>
 		<key>accelerometer</key>
 		<true/>
-		<key>opengles-1</key>
+		<!-- 엔진은 OpenGL ES 2.0 렌더러를 쓴다. 예전 값이던 opengles-1 은 ES1.1 지원을
+		     요구하는 뜻이라 최신 기기에서 설치가 막히고 앱스토어에서도 거부된다. -->
+		<key>opengles-2</key>
 		<true/>
 	</dict>
 	<key>UIStatusBarHidden</key>
