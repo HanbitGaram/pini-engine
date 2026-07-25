@@ -235,12 +235,13 @@ class DesignerView(QGraphicsView):
 
 			g = QSequentialAnimationGroup()
 
-			anim1 = QPropertyAnimation(v, "pos");
+			# PySide6 의 QPropertyAnimation 은 프로퍼티 이름을 bytes 로 받는다 (PySide1 은 str 허용).
+			anim1 = QPropertyAnimation(v, b"pos");
 			anim1.setDuration(600);
 			anim1.setStartValue(QPoint(0,v.pos().y()));
 			anim1.setEndValue(QPoint(0,-(len(self.logs)-i)*22));
 
-			anim2 = QPropertyAnimation(v, "opacity");
+			anim2 = QPropertyAnimation(v, b"opacity");
 			anim2.setDuration(400);
 			anim2.setStartValue(1);
 			anim2.setEndValue(0);

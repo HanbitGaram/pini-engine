@@ -167,7 +167,9 @@ class GraphicsProtocolObject(object):
 			painter.setCompositionMode(QPainter.CompositionMode_DestinationOver);
 			painter.end();
 
-			self.color.setAlphaChannel(self.origin.alphaChannel());
+			# Qt6 에서 QImage.alphaChannel()/setAlphaChannel() 은 제거되었다.
+			# 원본의 알파를 그대로 살리려면 알파 채널을 가진 포맷으로 변환하면 된다.
+			self.color = self.color.convertToFormat(QImage.Format_ARGB32)
 
 		def setColor(self,r,g,b):
 			if self.r != r or self.g != g or self.b != b : 

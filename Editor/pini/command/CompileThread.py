@@ -86,6 +86,19 @@ class CompilingThread(QThread):
 		self.editor= editor
 		self.toDestroy = False
 
+		# 이 스레드는 에디터 창이 hide 될 때만 멈춘다. 창이 열린 채로 앱이 종료되면
+		# 실행 중인 QThread 가 파괴되면서 Qt 가 프로세스를 abort 시킨다
+		# ("QThread: Destroyed while thread is still running" -> SIGABRT).
+		# 종료 직전에 확실히 멈추고 기다린다.
+		app = QApplication.instance()
+		if app is not None :
+			app.aboutToQuit.connect(self.stopOnQuit)
+
+	def stopOnQuit(self):
+		self.doDestroy()
+		if self.isRunning() :
+			self.wait(3000)
+
 	def enqueueCompile(self,update,callback=None,line = -1,lineRange = -1):
 		self.compileQueue.put([update,callback,line,lineRange])
 

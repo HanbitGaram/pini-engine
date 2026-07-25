@@ -502,9 +502,11 @@ scripts/build-mac.sh            # 앱 빌드 (Release)
 
 ### 10.1 결과
 - `Editor/pini` + `Editor/Noriter` 의 **모듈 47개가 전부 import 되고**, 에디터가 끝까지 부팅해
-  런처까지 뜬다. 실행 중 트레이스백 없음.
-- 검증한 경로: **에디터 구동 → 샘플 프로젝트(`집나간멍구`) 열기 → lupa 프리뷰 초기화 →
-  LNX 컴파일 → `build/` 에 .lua 7개 생성**까지 자동 테스트로 통과.
+  런처까지 뜬다.
+- 검증한 전체 시나리오: **에디터 구동 → 프로젝트 열기 → lupa 프리뷰 초기화 → LNX 컴파일 →
+  엔진(arm64) 기동 → TCP 파일 동기화 67개 → 씬 실행 → 종료** 까지
+  **예외 0건 / 종료코드 0** 으로 통과 (자동 구동 테스트).
+- 실행이 실제로 되기까지 잡아야 했던 것들은 §10.9(프로토콜) 과 §10.10(프로세스 급사) 참조.
 
 실행 방법:
 ```
@@ -603,12 +605,52 @@ Python 3.13 은 `2to3`/`lib2to3` 가 제거되었다. 유지보수 포크인 **`
   `Engine/OSX.app` 은 2015년 x86_64 산출물이라 Apple Silicon 에서 Rosetta 가 필요하다.
 - `open` → `open -n` (실행 버튼을 다시 누르면 새 인스턴스).
 
-### 10.9 남은 것 / 알려진 제약
+### 10.9 실행(에디터 -> 엔진) 이 실제로 동작하지 않던 이유 — RemoteClient 전면 수정
+
+"프로젝트를 실행하면 금방 꺼진다" 의 원인이 여기였다. **TCP 프로토콜 구현(`command/RemoteClient.py`)이
+py3/PySide6 에서 거의 전부 깨져 있었다.**
+
+1. **핵심**: `self.order = str(fin.device().read(4))`.
+   `QIODevice.read()` 는 QByteArray 를 돌려주는데, PySide(Qt4)는 `str()` 이 내용을 줬지만
+   PySide6 는 **repr** 을 준다 (`"b'PATH'"`, 7글자). 그래서 바로 다음 줄의 `len(self.order) == 4`
+   가 항상 거짓이 되고, **엔진에서 PATH 를 받은 직후 파일 전송이 통째로 멈춰** 있었다.
+   (스타일시트가 적용되지 않던 것과 완전히 같은 원인이다. `str(QByteArray)` 를 의심할 것.)
+2. `payload` 를 `""` 로 시작해 QByteArray 를 더하던 것 → `b""` + `bytes(...)`.
+3. `int(fin.device().read(11))` → py3 는 bytes 를 int() 에 넣지 못한다. decode 후 strip.
+4. `checksum()` 이 `b64encode(hexdigest())` 로 str 을 넘겨 TypeError.
+   엔진 쪽(`src/main.lua`)이 `to_base64(md5.sumhexa(data))` 로 계산하므로 **digest 가 아니라
+   hexdigest 를 base64** 해야 한다. 형식을 유지한 채 bytes 경유로 고쳤다.
+5. `QByteArray("문자열")` 6곳 → PySide6 는 bytes 만 받는다.
+6. `startLine` 4바이트 필드를 `resize(4)` 로 만들었는데 늘어난 부분은 초기화가 보장되지 않는다.
+   명시적으로 0 으로 채웠다 (엔진은 `tonumber(recv(input,4))` 로 읽고 NUL 패딩을 허용한다).
+
+수정 후 프로토콜이 완주하는 것을 확인했다:
+`PATH` -> 쓰기 경로 수신 -> `flst`(체크섬 목록) -> `ulst`(갱신 대상 67개) -> `tran` 67회 -> `ufin`.
+
+### 10.10 프로세스가 그냥 죽던 원인들 (에러 창 없이 사라짐)
+- **SIGABRT**: `CompilingThread`(프리뷰 컴파일 루프)는 에디터 창이 hide 될 때만 멈춘다.
+  창이 열린 채 앱이 종료되면 실행 중인 QThread 가 파괴되면서 Qt 가 프로세스를 abort 시킨다
+  (`QThread: Destroyed while thread is still running`). → `aboutToQuit` 에서 멈추고 wait.
+- 종료 경로에서 예외가 나면 임시저장/정리가 통째로 건너뛰어졌다:
+  `getTempFileName()` 이 `self.sceneCtrl` 이 None 인 상태에서 터졌다 (호출부까지 방어 추가).
+- `SceneScriptWindowManager.setActive()` 의 `list.remove(view)` 가 ValueError.
+  Qt6 에서는 창이 큐에 등록되기 전에 `focusInEvent` 가 먼저 올 수 있다.
+- `LineNumberArea` 가 `mousePressEvent` 없이 `mouseMoveEvent` 를 받으면 AttributeError.
+- 2to3 의 `fix_next` 가 **Qt 메서드인 `QTextBlock.next()`** 를 파이썬 이터레이터로 착각해
+  `next(block)` 으로 바꿔 놨다. 스크립트 에디터가 **매 리페인트마다** 예외를 던졌다 (3곳).
+  → `fix_filter` 사고와 같은 유형이다. **`.next()` 를 가진 Qt 타입을 조심할 것.**
+- `QPropertyAnimation(v, "pos")` → PySide6 는 프로퍼티 이름을 bytes 로 받는다.
+- Qt6 에서 제거된 `QImage.alphaChannel()` → 알파 있는 포맷으로 변환.
+
+수정 후 전체 시나리오(프로젝트 열기 -> 실행 -> 엔진 기동 -> 파일 동기화 -> 씬 시작 -> 종료)가
+**예외 0건, 종료코드 0** 으로 통과한다.
+
+### 10.11 남은 것 / 알려진 제약
 - **`--fullscreen` 이 mac 에서 동작하지 않는다.** 엔진 mac 타겟이 인자를 읽지 않는다
   (`AppDelegate(bool fullscreen = false)` 기본값 고정). 지원하려면 `mac/SimulatorApp.mm` 에서
   인자를 파싱해 `new AppDelegate(fullscreen)` 으로 넘겨야 한다.
-- **`Engine/OSX.app` 교체는 아직 안 했다.** 20MB 짜리 추적 바이너리를 갈아엎는 일이라
-  사용자 판단이 필요하다. 지금은 위 9.8 의 "빌드 산출물 우선" 로직으로 우회한다.
+- `Engine/OSX.app` 은 **arm64 런타임으로 교체 완료** (`scripts/install-mac-runtime.sh`).
+  기존에 들어 있던 2015년 x86_64 산출물("novel Mac")은 대체되었다.
 - **Windows 익스포트 경로(`Export_Windows.py` / `Export_Android.py`)는 문법만 py3 로 바꿨고
   동작 검증은 하지 않았다.** `pepy`(PE 아이콘 교체)는 win32 가드 안으로 옮겼다 — 현대 Pillow
   에서 삭제된 `PIL._binary` 를 쓰므로 Windows 에서도 손을 봐야 한다. (Phase 5 과제)

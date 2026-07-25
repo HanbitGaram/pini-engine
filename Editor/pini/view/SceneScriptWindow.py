@@ -232,7 +232,10 @@ class SceneScriptWindowManager(object):
 
 	def setActive(self,view):
 		self.active = view
-		self.activateQueue.remove(view)
+		# Qt6 에서는 창이 activateQueue 에 등록되기 전에 focusInEvent 가 먼저 올 수 있다.
+		# 그때 list.remove 가 ValueError 를 던져 focusInEvent 오버라이드가 통째로 실패했다.
+		if view in self.activateQueue :
+			self.activateQueue.remove(view)
 		self.activateQueue.append(view)
 
 	def remove(self,idx):

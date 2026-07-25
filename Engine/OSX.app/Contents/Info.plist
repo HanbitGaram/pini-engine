@@ -3,45 +3,51 @@
 <plist version="1.0">
 <dict>
 	<key>BuildMachineOSBuild</key>
-	<string>14A379a</string>
+	<string>24G624</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>novel Mac</string>
+	<string>pini_remote-desktop</string>
 	<key>CFBundleIconFile</key>
 	<string>Icon</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.cocos2dx.hellolua</string>
+	<string>com.p.p</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>novel Mac</string>
+	<string>pini_remote-desktop</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>DTCompiler</key>
 	<string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformBuild</key>
-	<string>6A317</string>
+	<string>25C58</string>
+	<key>DTPlatformName</key>
+	<string>macosx</string>
 	<key>DTPlatformVersion</key>
-	<string>GM</string>
+	<string>26.2</string>
 	<key>DTSDKBuild</key>
-	<string>13F26</string>
+	<string>25C58</string>
 	<key>DTSDKName</key>
-	<string>macosx10.9</string>
+	<string>macosx26.2</string>
 	<key>DTXcode</key>
-	<string>0600</string>
+	<string>2630</string>
 	<key>DTXcodeBuild</key>
-	<string>6A317</string>
+	<string>17C529</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.games</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.9</string>
+	<string>11.0</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2013. All rights reserved.</string>
 	<key>NSMainNibFile</key>

@@ -47,6 +47,8 @@ class ScriptEditor(QPlainTextEdit):
 		def __init__(self,parent):
 			super(ScriptEditor.LineNumberArea,self).__init__(parent) 
 			self.editor = parent
+			# mousePressEvent 없이 mouseMoveEvent 가 먼저 올 수 있어 미리 초기화한다.
+			self.pressedBlockNumber = 0
 			self.update()
 
 		def sizeHint(self):
@@ -217,6 +219,10 @@ class ScriptEditor(QPlainTextEdit):
 
 		targetPath = self.getTempFileName()
 		PROJPATH = ProjectController().path
+
+		# 씬이 연결되지 않은 에디터라면 지울 임시 파일도 없다.
+		if targetPath is None :
+			return 1
 
 		tempDir = "tempSave"
 		fp = None
@@ -574,7 +580,7 @@ class ScriptEditor(QPlainTextEdit):
 
 					tc.clearSelection()
 
-			block = next(block)
+			block = block.next()   # QTextBlock.next() 는 Qt 메서드다 (파이썬 이터레이터 아님)
 			top = bottom
 			bottom = top+int(self.blockBoundingRect(block).height())
 
@@ -1622,7 +1628,7 @@ class ScriptEditor(QPlainTextEdit):
 					painter.setPen(QColor(143,144,138));
 				painter.drawText(0, top, self.lineNumber.width()-1, self.fontMetrics().height(), Qt.AlignRight | Qt.AlignVCenter, number);
 
-			block = next(block)
+			block = block.next()   # QTextBlock.next() 는 Qt 메서드다 (파이썬 이터레이터 아님)
 			top = bottom
 			bottom = top+int(self.blockBoundingRect(block).height())
 			blockNumber += 1
@@ -1645,6 +1651,10 @@ class ScriptEditor(QPlainTextEdit):
 		self._tempSaveThread = None
 
 	def getTempFileName(self):
+		# 씬이 아직 연결되지 않은 상태로 창이 닫힐 수 있다. 그때 종료 처리가 예외로 끊기면
+		# 임시 저장/정리 단계가 통째로 건너뛰어진다.
+		if self.sceneCtrl is None :
+			return None
 		targetPath = self.sceneCtrl.path
 		targetPath = targetPath.replace("\\","/")
 		targetPath = targetPath.replace(ProjectController()._path.replace("\\","/")+"/scene/","")
@@ -1654,8 +1664,8 @@ class ScriptEditor(QPlainTextEdit):
 
 	def tempSave(self):
 		self.tempSaveTimer.stop()
-		if self.tempSaveFin == 0 : 
-			targetPath = self.getTempFileName()
+		targetPath = self.getTempFileName() if self.tempSaveFin == 0 else None
+		if self.tempSaveFin == 0 and targetPath is not None :
 			self._tempSaveThread = TempSaveThread(targetPath, self.toPlainText())
 			self._tempSaveThread.finished.connect(self.tempSaveFinish)
 			self._tempSaveThread.start()
@@ -2056,7 +2066,7 @@ class ScriptEditor(QPlainTextEdit):
 					self.compilingThread.enqueueCompile(True,None,bn)
 					# 재시도는 다음 타이머 작동시에 처리합니다.
 
-			block = next(block)
+			block = block.next()   # QTextBlock.next() 는 Qt 메서드다 (파이썬 이터레이터 아님)
 			i = i + 1
 		self.setExtraSelections(extraSelections)
 

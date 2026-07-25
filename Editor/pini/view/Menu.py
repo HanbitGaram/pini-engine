@@ -435,8 +435,9 @@ def __run__(clean,isCurrentScene,startLine=None):
 	if sys.platform == "darwin" :
 		if config.__RELEASE__ == False :
 			APPPATH = "../../Engine/OSX.app"
-			# 개발 중에는 scripts/build-mac.sh 로 갓 빌드한 arm64 런타임이 있으면 그것을 쓴다.
-			# (Engine/OSX.app 은 2015년 x86_64 산출물이라 Apple Silicon 에서 Rosetta 가 필요하다.)
+			# Engine/OSX.app 은 scripts/install-mac-runtime.sh 로 설치한 arm64 런타임이다.
+			# 다만 개발 중에는 scripts/build-mac.sh 로 갓 빌드한 산출물이 더 최신이므로
+			# 그게 있으면 그쪽을 먼저 쓴다 (매번 install 하지 않아도 되게).
 			BUILT = "../../Engine/VisNovel/frameworks/runtime-src/proj.ios_mac/build/Release/pini_remote-desktop.app"
 			if os.path.isdir(BUILT) :
 				APPPATH = BUILT
