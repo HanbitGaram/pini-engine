@@ -17,13 +17,14 @@
 
 #include "lua_utils.h"
 
-/* ffmpeg 프리빌트는 android(armeabi) 와 windows(x86) 만 있고 mac/iOS 용이 없다.
-   iOS 와 마찬가지로 mac 도 전 메서드가 no-op 인 VideoPlayer_iOS 스텁을 쓴다.
-   (비디오 재생 기능 비활성 — HANDOVER.md §4.5) */
-#if (CC_TARGET_PLATFORM == CC_PLATFORM_IOS || CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
-#include "VideoPlayer_iOS.h"
-#else
+/* ffmpeg 프리빌트가 남아 있는 플랫폼은 windows(x86) 뿐이다.
+   android 용은 armeabi(32bit) 밖에 없어서 arm64-v8a 를 만들 수 없고, mac/iOS 용은 아예 없다.
+   그래서 win32 를 제외한 모든 플랫폼에서 전 메서드가 no-op 인 VideoPlayer_iOS 스텁을 쓴다.
+   (비디오 재생 기능 비활성 — HANDOVER.md §4.5, §5.3) */
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 #include "VideoPlayer.h"
+#else
+#include "VideoPlayer_iOS.h"
 #endif
 
 #include "TextInput.h"
@@ -74,17 +75,11 @@ extern "C" {
 AppDelegate::AppDelegate(bool fullscreen)
 {
 	m_bFullscreen = fullscreen;
-#if (CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID )
-	m_pDevice = alcOpenDevice(NULL);
-	m_pALCtx = alcCreateContext(m_pDevice, NULL);
-	alcMakeContextCurrent(m_pALCtx);
-	if (!m_pALCtx)
-	{
-		//CCLOG("Oops2\n");
-	}
-	//CCLOG(">>> %d", m_pALCtx);
-#else
-#endif
+	/* 예전에는 여기서 OpenAL 컨텍스트를 직접 열었다(안드로이드 한정).
+	   그건 ffmpeg 비디오 플레이어의 오디오 출력을 위한 것이었는데, 비디오를 스텁으로
+	   돌리면서 쓸 데가 없어졌다. 게다가 libopenal.so 프리빌트는 armeabi/armeabi-v7a 만
+	   있어서 arm64-v8a 빌드를 막는다 (플레이스토어는 2019년부터 64bit 필수).
+	   cocos 자체 오디오는 안드로이드에서 OpenSL ES 를 쓰므로 영향이 없다. */
 	// experimental::AudioEngine::lazyInit();	
 	ATL::getInstance();
 }
@@ -98,12 +93,7 @@ AppDelegate::~AppDelegate()
     RuntimeEngine::getInstance()->end();
 #endif
 	
-#if (CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID )
-	alcDestroyContext(m_pALCtx);
-	alcMakeContextCurrent(NULL);
-	alcCloseDevice(m_pDevice);
-#else
-#endif
+	/* 위 생성자 참조: 안드로이드에서 OpenAL 컨텍스트를 더 이상 열지 않는다. */
 	experimental::AudioEngine::stopAll();
 	experimental::AudioEngine::end();
 	ATL::destroy();

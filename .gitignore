@@ -29,3 +29,8 @@ Engine/VisNovel/frameworks/runtime-src/proj.win32/Debug.win32/libluacocos2d.lib
 gen/
 
 build/
+
+# ndk-build 중간 산출물
+Engine/VisNovel/frameworks/runtime-src/proj.android/obj/
+Engine/VisNovel/frameworks/runtime-src/proj.android/libs/arm64-v8a/
+Engine/VisNovel/frameworks/runtime-src/proj.android/libs/armeabi-v7a/

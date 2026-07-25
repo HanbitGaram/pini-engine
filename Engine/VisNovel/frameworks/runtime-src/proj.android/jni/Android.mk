@@ -13,7 +13,7 @@ LOCAL_SRC_FILES := \
 ../../Classes/AppDelegate.cpp \
 hellolua/main.cpp \
 ../../Classes/AppDelegateEvent.cpp \
-../../Classes/VideoPlayer.cpp \
+../../Classes/VideoPlayer_iOS.cpp \
 ../../Classes/ATL.cpp \
 ../../Classes/TextInput.cpp \
 ../../Classes/md5/md5lib.c \
@@ -33,8 +33,6 @@ $(LOCAL_PATH)/../../../cocos2d-x/external \
 $(LOCAL_PATH)/../../../cocos2d-x/tools/simulator/libsimulator/lib \
 $(LOCAL_PATH)/../../../cocos2d-x/tools/simulator/libsimulator/lib/protobuf-lite \
 $(LOCAL_PATH)/../../Classes/md5 \
-$(LOCAL_PATH)/../../Classes/ffmpeg/android/include \
-$(LOCAL_PATH)/../../Classes/openal/include \
 $(LOCAL_PATH)/../../Classes/ifaddrs_android
 
 # _COCOS_HEADER_ANDROID_BEGIN
@@ -43,7 +41,9 @@ $(LOCAL_PATH)/../../Classes/ifaddrs_android
 LOCAL_STATIC_LIBRARIES := cocos2d_lua_static
 LOCAL_STATIC_LIBRARIES += cocos2d_simulator_static
 
-LOCAL_SHARED_LIBRARIES := libavcodec libavformat libswscale libavutil libswresample libopenal
+# ffmpeg 와 openal 프리빌트는 32bit(armeabi) 밖에 없어서 arm64-v8a 링크를 막는다.
+# 비디오 플레이어를 스텁(VideoPlayer_iOS.cpp)으로 돌리면서 둘 다 필요 없어졌다.
+# LOCAL_SHARED_LIBRARIES := libavcodec libavformat libswscale libavutil libswresample libopenal
 
 # _COCOS_LIB_ANDROID_BEGIN
 # _COCOS_LIB_ANDROID_END
@@ -52,8 +52,8 @@ include $(BUILD_SHARED_LIBRARY)
 
 $(call import-module,scripting/lua-bindings/proj.android)
 $(call import-module,tools/simulator/libsimulator/proj.android)
-$(call import-module,../../runtime-src/Classes/ffmpeg)
-$(call import-module,../../runtime-src/Classes/openal)
+# $(call import-module,../../runtime-src/Classes/ffmpeg)
+# $(call import-module,../../runtime-src/Classes/openal)
 
 # _COCOS_LIB_IMPORT_ANDROID_BEGIN
 # _COCOS_LIB_IMPORT_ANDROID_END

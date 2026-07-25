@@ -36,7 +36,11 @@
 #include "base/CCDirector.h"
 #include "base/CCEventCustom.h"
 
+#if defined(_MSC_VER)
+// MSVC 전용 지시자다. 가드가 없으면 최신 clang 이 ELF 오브젝트에도 dependent-library 항목을
+// 심어 버려서, 안드로이드 링크 단계에서 lld 가 'lua51.lib' 를 찾다 실패한다.
 #pragma comment(lib,"lua51.lib")
+#endif
 
 NS_CC_BEGIN
 

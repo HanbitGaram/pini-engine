@@ -7,13 +7,11 @@
 #include <list>
 using namespace std;
 
-#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
-/* macOS 에는 Classes/openal (안드로이드용 OpenAL Soft 헤더) 를 쓰지 않고 시스템
-   OpenAL.framework 를 쓴다. 실제 alc* 호출은 안드로이드 분기에만 있고, mac 에서는
-   ALCdevice/ALCcontext 타입 선언만 필요하다. */
-#include <OpenAL/al.h>
-#include <OpenAL/alc.h>
-#elif (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
+/* OpenAL 은 이제 win32 에서만 쓴다.
+   - 안드로이드: 프리빌트가 armeabi/armeabi-v7a 뿐이라 arm64-v8a 를 막아서 걷어냈다.
+   - mac/iOS: 애초에 alc* 호출이 없었다 (안드로이드 분기 전용이었다).
+   win32 는 기존 동작을 그대로 두기 위해 헤더/멤버를 유지한다. */
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 #include "AL/al.h"
 #include "AL/alc.h"
 #endif
@@ -28,7 +26,7 @@ class  AppDelegate : private cocos2d::Application
 private:
 	std::list<AppDelegateEvent*> _eventNode;
     
-#if (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 	ALCdevice		*m_pDevice;
 	ALCcontext		*m_pALCtx;
 #endif
