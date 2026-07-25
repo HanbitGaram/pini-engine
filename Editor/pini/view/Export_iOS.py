@@ -49,8 +49,11 @@ class ExportThread(QThread):
 	아카이브는 몇 분에서 수십 분까지 걸린다. 진행 상황이 안 보이면 멈춘 것과
 	구분이 안 되므로 로그를 그대로 보여 준다."""
 
-	line = Signal(str)
-	done = Signal(bool, str)
+	# ModalWindow 는 QDialog 라서 finished/done/thread 라는 이름이 이미 Qt 것이다.
+	# 그 이름을 그대로 쓰면 시그널이나 메서드가 조용히 가려진다 (실제로 self.finished 가
+	# QDialog.finished(int) 로 잡혀 connect 가 실패했다). 접두어를 붙여 피한다.
+	logLine = Signal(str)
+	exportDone = Signal(bool, str)
 
 	def __init__(self, env, parent=None):
 		super(ExportThread, self).__init__(parent)
@@ -72,14 +75,14 @@ class ExportThread(QThread):
 			for raw in iter(self._proc.stdout.readline, b""):
 				text = raw.decode("utf-8", "replace").rstrip()
 				tail = text or tail
-				self.line.emit(text)
+				self.logLine.emit(text)
 			self._proc.stdout.close()
 			code = self._proc.wait()
 		except Exception as e:
-			self.done.emit(False, str(e))
+			self.exportDone.emit(False, str(e))
 			return
 
-		self.done.emit(code == 0, tail)
+		self.exportDone.emit(code == 0, tail)
 
 	def stop(self):
 		if self._proc and self._proc.poll() is None:
@@ -91,16 +94,16 @@ class ExportIOSWindow(ModalWindow):
 		return QSize(430, 0)
 
 	def __init__(self, src=None, parent=None):
-		self.thread = None
+		self.export_thread = None
 		self.result_path = ""
 		super(ExportIOSWindow, self).__init__(parent)
 		self.setWindowTitle("iOS 익스포트")
 
 	def closeEvent(self, e):
 		# 실행 중인 xcodebuild 를 두고 창만 닫히면 좀비 프로세스가 남는다.
-		if self.thread and self.thread.isRunning():
-			self.thread.stop()
-			self.thread.wait(3000)
+		if self.export_thread and self.export_thread.isRunning():
+			self.export_thread.stop()
+			self.export_thread.wait(3000)
 		super(ExportIOSWindow, self).closeEvent(e)
 
 	# ------------------------------------------------------------------ 환경 점검
@@ -228,7 +231,7 @@ class ExportIOSWindow(ModalWindow):
 				self.log("리소스 스테이징: %s" % stagedir)
 				self.stage_resources(stagedir, gamename)
 			except Exception as e:
-				self.finished(False, "스테이징 실패: %s" % e)
+				self.on_export_done(False, "스테이징 실패: %s" % e)
 				return
 
 			self.log("Xcode 아카이브 시작 — 수 분 걸릴 수 있습니다.")
@@ -243,10 +246,10 @@ class ExportIOSWindow(ModalWindow):
 				"METHOD": method,
 			}
 			self.result_path = outdir
-			self.thread = ExportThread(env, self)
-			self.thread.line.connect(self.log)
-			self.thread.done.connect(self.finished)
-			self.thread.start()
+			self.export_thread = ExportThread(env, self)
+			self.export_thread.logLine.connect(self.log)
+			self.export_thread.exportDone.connect(self.on_export_done)
+			self.export_thread.start()
 
 		inst.compileProj(False, after_compile)
 
@@ -255,7 +258,7 @@ class ExportIOSWindow(ModalWindow):
 		bar = self.logview.verticalScrollBar()
 		bar.setValue(bar.maximum())
 
-	def finished(self, ok, tail):
+	def on_export_done(self, ok, tail):
 		AssetLibraryWindow().watcherOn = True
 		AssetLibraryWindow().updateWatcher()
 
