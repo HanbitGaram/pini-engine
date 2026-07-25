@@ -858,3 +858,156 @@ mac 빌드/런타임 회귀 없음.
   의존성을 iOS-simulator 까지 빌드해 xcframework 로 묶어야 한다.
 - 실기기에서의 **동작 검증은 아직 못 했다.** 빌드까지만 확인했다.
   (에디터 ↔ 엔진 TCP 는 mac 에서 검증했고 프로토콜은 플랫폼 중립이다.)
+
+---
+
+# 12. Phase 4 (Android) 진행 결과
+
+**결론: `./gradlew assembleDebug` 로 arm64-v8a 를 포함한 APK 생성에 성공했다 (성공 기준 충족).**
+
+```
+build/outputs/apk/debug/pini_remote-debug.apk        25 MB
+  └ lib/arm64-v8a/libcocos2dlua.so                   20 MB  ELF 64-bit, ARM aarch64
+  └ assets/                                          127 개 (src/ + res/ + config.json)
+  └ classes.dex ~ classes5.dex
+```
+
+빌드 방법:
+
+```sh
+cd Engine/VisNovel/frameworks/runtime-src/proj.android
+./gradlew assembleDebug
+```
+
+사전에 `scripts/build-deps-android.sh` 로 네이티브 의존성이 준비돼 있어야 한다 (§12.2).
+
+## 12.1 빌드 시스템: ant → Gradle (AGP 8.6 + ndk-build)
+
+`proj.android` 는 ant(`build.xml`) 프로젝트였고 `proj.android-studio` 는 **게임 코드가 없는
+cocos 순정 템플릿**이었다(§5.1). 둘 중 하나를 고르는 대신 **ant 레이아웃을 그대로 둔 채
+Gradle 을 얹었다.** 소스를 복제하지 않아 진실의 출처가 하나로 유지된다.
+`proj.android-studio` 는 손대지 않았다.
+
+새로 추가한 파일: `build.gradle`, `settings.gradle`, `gradle.properties`,
+`gradlew`/`gradlew.bat`/`gradle/wrapper/` (Gradle 8.9).
+
+`build.gradle` 의 핵심은 **ant 디렉터리 배치를 sourceSets 로 그대로 선언**하는 것이다
+(`java.srcDirs = ['src', ...]`, `manifest.srcFile 'AndroidManifest.xml'`, `res.srcDirs = ['res']`).
+
+- `namespace` / `applicationId` = `com.nooslab.pini_remote_landscape`, compileSdk 35,
+  minSdk 24, targetSdk 35, ndkVersion 27.1.12297006
+- 네이티브는 **기존 `jni/Android.mk` 를 `externalNativeBuild.ndkBuild` 로 그대로** 쓴다.
+  cocos 3.15 는 CMake 지원이 부실해서 ndk-build 가 최단 경로다.
+- `arguments "NDK_MODULE_PATH=..."` — cocos 의 `Android.mk` 들이 `import-module` 로 서로를
+  찾는 데 필요하다. 예전에는 cocos 콘솔이 주입해 주던 값이다.
+- `abiFilters 'arm64-v8a'` — `Application.mk` 는 `armeabi-v7a` 도 열어 뒀지만 현재 검증한 건
+  arm64 뿐이라 Gradle 에서 좁혔다 (§12.7).
+- `jniLibs.srcDirs = []` — `libs/` 의 폐기된 광고 SDK jar 와 32bit `armeabi` `.so` 를 끌어오지
+  않기 위해서다. 네이티브는 `externalNativeBuild` 산출물만 쓴다.
+
+### ndk-build 모듈명
+
+AGP 는 매니페스트의 `android.app.lib_name`(=`cocos2dlua`)을 **ndk-build 의 make 타겟**으로
+넘긴다. 기존 모듈명은 `cocos2dlua_shared` + `LOCAL_MODULE_FILENAME := libcocos2dlua` 조합이라
+`No rule to make target 'cocos2dlua'` 로 실패했다. 모듈명을 산출물 파일명과 일치시켰다
+(`LOCAL_MODULE := cocos2dlua`, `LOCAL_MODULE_FILENAME` 삭제).
+
+### `Application.mk`
+
+- `APP_STL`: `gnustl_static` → **`c++_static`** (NDK r18 부터 gnustl 제거)
+- `APP_ABI`: 미지정(=cocos 기본값 `armeabi`) → **`arm64-v8a armeabi-v7a`**.
+  플레이스토어는 2019년부터 64bit 를 필수로 요구한다.
+- `APP_PLATFORM := android-24`, `-std=c++14`
+- `APP_CFLAGS += -Wno-implicit-const-int-float-conversion` — cocos 가 vendored 한
+  pvmp3dec(MP3 디코더)가 자체 `Android.mk` 에서 `-Werror` 를 켜는데, 최신 clang 이 새로 추가한
+  경고 때문에 **의도된** 고정소수점 상수 계산이 에러로 승격된다.
+
+## 12.2 네이티브 의존성 재빌드 (`scripts/build-deps-android.sh`)
+
+저장소의 안드로이드 프리빌트는 2016년산 `armeabi`/`armeabi-v7a` 위주라 arm64 를 못 만든다.
+mac/iOS 와 같은 방식으로 소스에서 다시 빌드한다.
+
+| 라이브러리 | 비고 |
+|---|---|
+| LuaJIT 2.1 | **Phase 1 에서 헤더를 2.1 로 올렸으므로 필수.** 2.0 프리빌트와 섞으면 `_luaL_setfuncs` undefined (§11 iOS 와 동일한 함정) |
+| chipmunk 7.0.3 | `sys/sysctl.h` 를 `__ANDROID__` 에서 가드 |
+| libwebsockets | SSL 없이 |
+| openssl 1.1.1w | 아래 참조 |
+
+**openssl 을 걷어낼 수 없는 이유.** 2016년 arm64 프리빌트가 있긴 한데 **non-PIC** 라 최신
+lld 가 거부한다. cocos 의 `curl` 이 https 에 openssl 을 쓰므로 제거도 불가능해서,
+`-fPIC` 로 1.1.1w 를 다시 빌드했다.
+
+**LuaJIT 가 Mach-O 로 나오던 문제.** mac 빌드가 남긴 오브젝트가 공유 소스 트리에 남아 있는데
+LuaJIT 의 `make clean` 이 이를 완전히 지우지 못한다. ABI 마다 `git archive HEAD | tar -x` 로
+**깨끗한 트리를 새로 펼쳐** 빌드하고, 산출물이 ELF 인지 검증하도록 했다.
+
+## 12.3 Java 축소: `AppActivity.java` 850줄 → 223줄
+
+2015년 앱이라 죽은 SDK 가 잔뜩 붙어 있었다. 광고 SDK 4종, Fabric/Crashlytics,
+OBB 확장파일 다운로더, AIDL v3 인앱결제를 걷어냈다. 원본은 `AppActivity.java.orig-ant` 로 남겨 뒀다.
+
+**중요 — Lua 가 부르는 static 메서드 16개는 시그니처를 그대로 유지했다.** Lua 쪽은 JNI 로
+이름/시그니처를 찾으므로 하나라도 없으면 런타임에 죽는다.
+
+**더 중요 — 스텁도 반드시 콜백해야 한다.** 결제·OBB 호출부의 Lua 는 `vm:stop()` 으로 코루틴을
+세우고 콜백을 기다린다. 콜백이 영영 안 오면 스크립트가 그 자리에서 **영구 정지**한다.
+그래서 스텁은 즉시 실패/성공을 돌려준다:
+
+- `IAB_*` → `CallLua("PINI_IAP_CALLBACK", "{\"result\":false}")`
+- `ExtensionFile_Download` → `CallLua("PINI_OBB_DOWNLOAD_RESULT", "1")`
+- `ExtensionFile_IsFileExists` → `true` (확장파일 없이 APK 내장 리소스로 동작)
+
+삭제: `ExpansionFileAlarmReceiver.java`, `ExpansionFileDownloaderService.java`.
+
+## 12.4 `AlarmReceive.java` (로컬 알림)
+
+`new Notification(icon, tickerText, when)` + `setLatestEventInfo()` 는 **API 11 에서 폐기,
+API 23 에서 제거**됐다. `NotificationCompat.Builder` + `NotificationChannel`(API 26+) 로
+재작성하고, `PendingIntent` 에 `FLAG_IMMUTABLE` 을 붙였다 (API 31+ 필수).
+
+## 12.5 `AndroidManifest.xml`
+
+- `package` 속성 제거 — AGP 8 은 `namespace` 를 쓰고, 남아 있으면 빌드가 실패한다
+- `<uses-sdk>` 제거 — `build.gradle` 로 이동
+- 모든 액티비티/리시버/서비스에 `android:exported` 명시 (API 31+ 필수)
+- 광고/Fabric/확장파일/결제 권한과 컴포넌트 제거
+
+## 12.6 cocos 자바 런타임 쪽에서 걸린 것들
+
+cocos 소스를 최대한 안 고치는 방향으로 풀었다.
+
+| 증상 | 원인 | 조치 |
+|---|---|---|
+| `com.android.vending.expansion.zipfile` 없음 | `Cocos2dxHelper` 가 OBB zip 읽기를 참조 | **저장소에 이미 있는** `android-extension/play_apk_expansion/zip_file/src` 를 `java.srcDirs` 에 추가 |
+| `com.enhance.gameservice` 없음 | `IGameTuningService` 는 AIDL | `aidl.srcDirs` 지정 + `buildFeatures { aidl true }` (AGP 8 부터 기본 꺼짐) |
+| `com.loopj.android.http` 없음 | `Cocos2dxDownloader` 의 async-http. 기존 `libs/` jar 는 API 23 에서 빠진 Apache HttpClient 의존 | Maven `com.loopj.android:android-async-http:1.4.9` (HttpClient 를 `cz.msebera` 로 리패키징해 내장) |
+| `com.android.vending.billing` 없음 | AIDL v3 결제 헬퍼 `com.android.util.Iab*` | `java.exclude '**/com/android/util/**'` (§12.7) |
+| `org.cocos2dx.enginedata` 없음 | **저장소에 인터페이스 파일 자체가 없다.** OEM 성능 힌트 연동 | `Cocos2dxEngineDataManager.java` 를 no-op 스텁으로 교체. 원본은 `.orig` 보관 |
+
+## 12.7 리소스 동기화 (`syncGameAssets`)
+
+예전에는 `cocos compile` 이 `build-cfg.json` 의 `copy_resources` 를 읽어
+`src`/`res`/`config.json` 을 `proj.android/assets/` 로 복사했다. 그 복사본이 저장소에
+커밋돼 있는데 **정작 `src/`(Lua 전체)가 빠져 있다.** 그대로 패키징하면 APK 는 만들어지지만
+엔진이 `src/main.lua` 를 못 찾아 즉시 죽는다 — 빌드 성공만 보고 넘어가기 쉬운 함정이다.
+
+그래서 assets 를 **원본에서 빌드 때마다 동기화하는 생성 디렉터리**
+(`build/generated/pini-assets`)로 바꿨다. `Sync` 태스크가 `build-cfg.json` 과 같은 일을 하고,
+`merge*Assets` 가 여기에 의존한다. 복사본이 원본과 어긋날 여지가 없어진다.
+
+> `proj.android/assets/` (커밋된 54개 파일)는 이제 **쓰이지 않는 잔재**다.
+> 정리 여부는 사용자 판단에 맡기고 건드리지 않았다.
+
+## 12.8 남은 과제
+
+- **실기기 동작 검증을 아직 못 했다.** 빌드와 APK 내용물 확인까지만 했다.
+- **`armeabi-v7a`.** `Application.mk` 에는 열려 있지만 의존성 빌드/링크를 검증하지 않아
+  `abiFilters` 로 막아 뒀다. 32bit 를 지원하려면 §12.2 를 v7a 로도 돌리고 풀면 된다.
+- **인앱결제.** AIDL v3 는 폐기됐다. Play Billing 7+ 로 재작성해야 실제 결제가 된다.
+  그 전까지는 실패 콜백 스텁이다.
+- **비디오 재생.** ffmpeg 프리빌트가 `armeabi` 뿐이라 `VideoPlayer_iOS` no-op 스텁을 쓴다
+  (§4.5, §5.3). 안드로이드는 `MediaPlayer`/`ExoPlayer` 로 다시 붙이는 게 맞다.
+- **서명.** 현재는 debug 서명이다. release 는 §5.5 (커밋된 keystore) 결론이 먼저 필요하다.
+- `local.properties` 는 머신마다 다른 SDK 경로라 추적에서 뺐다 (`.gitignore` 추가).
+  파일 자체는 "must *NOT* be checked into Version Control Systems" 라고 스스로 명시하고 있다.

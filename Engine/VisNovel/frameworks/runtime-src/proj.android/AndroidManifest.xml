@@ -1,48 +1,59 @@
-<?xml version='1.0' encoding='utf-8'?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.nooslab.pini_remote_landscape" android:installLocation="auto" android:versionCode="56" android:versionName="1.937">
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [현대화 — HANDOVER.md §6 Phase 4-7]
+  원본은 minSdk 9 / targetSdk 미지정이었고, 광고 SDK 4종·Fabric·OBB 확장파일·LVL licensing
+  액티비티와 권한이 모두 선언되어 있었다. 1차 릴리즈 범위에서 전부 제거했다.
+  package 속성은 AGP 8 부터 build.gradle 의 namespace 로 대체되어 여기서는 쓰지 않는다.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:installLocation="auto">
 
-  <uses-sdk android:minSdkVersion="9" />
-  <uses-feature android:glEsVersion="0x00020000" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 로컬 예약 알림용. API 33+ 는 런타임 권한도 필요하다. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-  <application android:icon="@drawable/icon" android:label="@string/app_name">
-           
-    <meta-data android:name="android.app.lib_name" android:value="cocos2dlua" />
-    <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
+    <!--
+      제거한 권한:
+        WRITE_EXTERNAL_STORAGE / MOUNT_UNMOUNT_FILESYSTEMS  (OBB 확장파일용, scoped storage 이후 무의미)
+        com.android.vending.BILLING / CHECK_LICENSE          (AIDL 결제 / LVL licensing 제거)
+        CHANGE_NETWORK_STATE / CHANGE_WIFI_STATE             (광고 SDK 가 요구하던 것)
+    -->
 
-    <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize" android:name="com.google.android.gms.ads.AdActivity" android:screenOrientation="landscape" android:theme="@android:style/Theme.Translucent" />
-    
-    <activity android:configChanges="keyboardHidden|orientation|screenSize" android:name="com.vungle.publisher.FullScreenAdActivity" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
 
-    <activity android:configChanges="keyboard|keyboardHidden|orientation" android:name="kr.co.uplusad.dmpcontrol.LGUDMPActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/icon"
+        android:allowBackup="true">
 
-    <activity android:configChanges="orientation" android:label="@string/app_name" android:name="org.cocos2dx.lua.AppActivity" android:screenOrientation="landscape" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-      <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
-    </activity>
+        <meta-data android:name="android.app.lib_name" android:value="cocos2dlua" />
 
-    <receiver android:label="alarmrecever" android:name="org.cocos2dx.lua.AlarmReceive">
-      <intent-filter>
-        <action android:name="com.piniengine.alram" />
-      </intent-filter>
-    </receiver>
+        <activity
+            android:name="org.cocos2dx.lua.AppActivity"
+            android:label="@string/app_name"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|uiMode|smallestScreenSize"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
-    <service android:label="@string/app_name" android:name="org.cocos2dx.lua.ExpansionFileDownloaderService" />
-    <receiver android:label="@string/app_name" android:name="org.cocos2dx.lua.ExpansionFileAlarmReceiver" />
-      <meta-data android:name="io.fabric.ApiKey" android:value="REMOVED-FABRIC-API-KEY" />
+        <!-- API 31 부터 intent-filter 를 가진 컴포넌트는 exported 를 명시해야 한다.
+             이 리시버는 앱이 스스로 건 알람만 받으므로 exported=false 가 맞다. -->
+        <receiver
+            android:name="org.cocos2dx.lua.AlarmReceive"
+            android:label="alarmrecever"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.piniengine.alram" />
+            </intent-filter>
+        </receiver>
     </application>
-  <supports-screens android:anyDensity="true" android:largeScreens="true" android:normalScreens="true" android:smallScreens="true" android:xlargeScreens="true" />
-  <uses-permission android:name="android.permission.INTERNET" />
-  <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />  
-  <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />  
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />  
-  <uses-permission android:name="android.permission.VIBRATE" />
-  <uses-permission android:name="com.android.vending.BILLING" />
-  <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-  <uses-permission android:name="com.android.vending.CHECK_LICENSE" />
-  <uses-permission android:name="android.permission.WAKE_LOCK" />
-  <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
 </manifest>

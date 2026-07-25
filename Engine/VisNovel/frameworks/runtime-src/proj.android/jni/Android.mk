@@ -2,12 +2,14 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := cocos2dlua_shared
+# 모듈명을 산출물 파일명(libcocos2dlua.so)과 일치시킨다.
+# AGP 는 매니페스트의 android.app.lib_name(cocos2dlua)을 ndk-build 의 make 타겟으로 넘기는데,
+# 예전처럼 모듈명이 cocos2dlua_shared 이면 "No rule to make target 'cocos2dlua'" 로 실패한다.
+LOCAL_MODULE := cocos2dlua
 
 LOCAL_CFLAGS := -D__STDC_CONSTANT_MACROS=1
 APP_OPTIM := release
 
-LOCAL_MODULE_FILENAME := libcocos2dlua
 
 LOCAL_SRC_FILES := \
 ../../Classes/AppDelegate.cpp \
