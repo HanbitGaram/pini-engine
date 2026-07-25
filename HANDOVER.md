@@ -810,13 +810,46 @@ PLATFORM=ios scripts/build-deps-apple.sh chipmunk luajit
 - 서브프로젝트 3개의 `SDKROOT = iphoneos11.0` 하드코딩은 mac 과 같은 방식으로
   `scripts/build-ios.sh` 의 커맨드라인 오버라이드로 처리했다 (vendored 프로젝트 파일 수정 최소화).
 
-### 11.5 남은 것 / 앱스토어 제출 전 필수 작업
-- **UIWebView 제거.** 빌드는 되지만 앱스토어는 UIWebView 를 포함한 바이너리를 거부한다
-  (ITMS-90809). 게임 코드는 UIWebView 를 쓰지 않으므로 cocos 빌드에서 들어내면 된다:
-  `cocos/ui/UIWebView*`, `UIWebViewImpl-ios.*` 를 `libcocos2d iOS` 타겟에서 제외하고,
-  lua-bindings 의 webview auto/manual 파일과 `lua_module_register` 의 등록도 함께 제거.
-  같은 방식으로 `UIVideoPlayer-ios.mm`(MPMoviePlayerController)도 정리하는 것이 좋다.
-  **실기기/제출 검증이 필요한 작업이라 이번 범위에서는 하지 않았다.**
+### 11.5 UIWebView → WKWebView 이식 (앱스토어 거부 사유 제거)
+
+UIWebView 는 iOS 12 에서 deprecated 되었고, **이걸 참조하는 바이너리는 앱스토어가 거부한다
+(ITMS-90809).** SDK 에 아직 선언이 남아 있어 빌드는 되지만 제출이 막힌다.
+
+처음에는 "게임이 안 쓰니 cocos 빌드에서 소스를 들어내자" 고 계획했지만(§6 Phase 3-2),
+**WKWebView 로 이식하는 쪽이 더 낫고 덜 침습적이었다.**
+소스를 들어내면 lua-bindings 의 webview auto/manual 파일과 `lua_module_register` 등록까지
+줄줄이 손봐야 하는데, 구현만 갈아 끼우면 **cocos 의 API 표면이 그대로**라 그럴 필요가 없다.
+기능도 그대로 남는다.
+
+UIKit 의 `UIWebView` 를 실제로 쓰는 곳은 `cocos/ui/UIWebViewImpl-ios.mm` **한 파일뿐**이었다
+(다른 파일의 "UIWebView" 는 cocos 자체 클래스/파일 이름이다).
+
+바뀐 것:
+| UIWebView | WKWebView |
+|---|---|
+| `UIWebViewDelegate` | `WKNavigationDelegate` |
+| `shouldStartLoadWithRequest:` (BOOL 반환) | `decidePolicyForNavigationAction:decisionHandler:` |
+| `webViewDidFinishLoad:` | `didFinishNavigation:` |
+| `didFailLoadWithError:` | `didFailNavigation:` + `didFailProvisionalNavigation:` (둘로 나뉨) |
+| `stringByEvaluatingJavaScriptFromString:` (동기, 결과 반환) | `evaluateJavaScript:completionHandler:` (비동기) |
+| `loadData:...textEncodingName:` | `loadData:...characterEncodingName:` |
+| `scalesPageToFit` 프로퍼티 | 없음 → 로드 완료 후 viewport meta 주입으로 대체 |
+
+- 동기 → 비동기 JS 평가는 문제되지 않는다. cocos 의 `WebView::evaluateJS()` 는 반환값이 void 다.
+- 래퍼 클래스 이름도 `UIWebViewWrapper` → `WKWebViewWrapper` 로 바꿨다 (이제 WKWebView 를 감싼다).
+- 앱 타겟에 **`WebKit.framework` 링크 추가**.
+
+검증: iOS 바이너리에서 `UIWebView` 참조가 **완전히 0** 이다
+(`nm -m | grep _OBJC_CLASS_$_UIWebView` = 0, `strings | grep UIWebView` = 0).
+mac 빌드/런타임 회귀 없음.
+
+> 실기기에서 웹뷰 동작 자체는 검증하지 못했다 (게임이 웹뷰를 쓰지 않아 실행 경로에 안 걸린다).
+> 웹뷰를 실제로 쓰게 되면 스크롤/투명 배경/JS 콜백 스킴을 기기에서 확인할 것.
+
+### 11.6 남은 것 / 앱스토어 제출 전 필수 작업
+- `cocos/ui/UIVideoPlayer-ios.mm` 의 **MPMoviePlayerController** 는 그대로 두었다.
+  deprecated 이지만 UIWebView 처럼 자동 거부 대상은 아니다. 게임은 이 위젯을 쓰지 않는다
+  (게임의 비디오는 `VideoPlayer_iOS.cpp` 스텁). 필요해지면 AVPlayer 로 이식할 것.
 - **서명/프로비저닝.** 실제 `.ipa` 서명과 설치·제출은 사용자 Apple 계정이 필요하다.
   현재 프로젝트에는 `DEVELOPMENT_TEAM = A7E8XURC34` 가 남아 있다 (2015년 팀 ID로 보인다).
 - **아이콘/런치 이미지 현대화.** 지금은 개별 PNG 목록(`CFBundleIconFiles`) 방식이다.

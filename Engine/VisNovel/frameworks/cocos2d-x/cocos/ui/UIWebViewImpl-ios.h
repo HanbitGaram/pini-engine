@@ -29,7 +29,7 @@
 #include <stdint.h>
 #include <iosfwd>
 
-@class UIWebViewWrapper;
+@class WKWebViewWrapper;
 
 namespace cocos2d {
     
@@ -85,7 +85,7 @@ public:
     void setBounces(bool bounces);
 
 private:
-    UIWebViewWrapper *_uiWebViewWrapper;
+    WKWebViewWrapper *_wkWebViewWrapper;
     WebView *_webView;
 };
 
