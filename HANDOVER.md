@@ -15,7 +15,8 @@
 
 | 항목 | 값 |
 |---|---|
-| 머신 | Apple Silicon (arm64), macOS 15.7.5, **Rosetta 2 설치됨** |
+| 머신 | Apple Silicon (arm64), macOS 15.7.5, Rosetta 2 설치됨 |
+| Rosetta 정책 | **의존 금지.** Apple 발표(WWDC25) 기준 Rosetta 2는 macOS 27까지만 일반 지원, macOS 28부터 구형 게임용 일부만 잔존. **최종 산출물은 arm64 네이티브여야 함.** Rosetta는 중간 검증용으로만 허용 |
 | Xcode | 26.3 (SDK: macOS 26.2, iOS 26.2) |
 | OpenGL.framework | macOS 26.2 SDK에 **아직 존재** (deprecated지만 동작) → cocos2d-x 3.x GL 렌더러 사용 가능 |
 | Java | OpenJDK 21 (`/usr/bin/java`) |
@@ -117,10 +118,11 @@
 
 ### 4.2 프리빌트 라이브러리 아키텍처 (lipo 검증됨)
 - **mac: 전부 x86_64(일부 +i386), arm64 없음.** chipmunk/curl/freetype/glfw3/jpeg/luajit/openssl/png/tiff/webp/websockets/zlib 전부.
-  → **1차 전략 확정: `ARCHS=x86_64`로 빌드해 Rosetta로 구동.** (Rosetta 설치 확인됨)
-  arm64 네이티브는 13개 라이브러리 재빌드 필요. 특히 **LuaJIT**(x86_64-thin, 2.0계열은
-  arm64-macOS 미지원)가 최난관 — arm64로 가려면 LuaJIT 2.1 빌드 또는 일반 Lua 5.1 전환 필요.
-  mac용 일반 lua 프리빌트도 없음(`lua/lua/prebuilt`는 ios만 존재).
+  → **최종 목표는 arm64 네이티브** (Rosetta 의존 금지 — §1 정책 참조). 프리빌트를 arm64로
+  재빌드/교체하는 구체적 방법은 **§4.7 참조.** `ARCHS=x86_64` + Rosetta 빌드는 "코드 수정이
+  맞는지"를 빠르게 확인하는 중간 검증 단계로만 써도 되고, 곧장 arm64로 가도 된다.
+  특히 **LuaJIT**(x86_64-thin, 2.0계열은 arm64-macOS 미지원)가 최난관 — LuaJIT 2.1 재빌드
+  또는 일반 Lua 5.1 전환 필요 (§4.7-3). mac용 일반 lua 프리빌트도 없음(`lua/lua/prebuilt`는 ios만).
 - **iOS: 실기기 arm64 슬라이스 전부 존재** (armv7 i386 x86_64 arm64 fat). **arm64 시뮬레이터
   슬라이스는 없음** → Apple Silicon에서 시뮬레이터 빌드 불가, 실기기 빌드만 가능.
 - external 버전: v3-deps-130 (openssl 1.1.0c, curl 7.52.1, freetype 2.5.5 등 — 2016년산).
@@ -165,6 +167,59 @@
   `config.json`이 시뮬레이터 설정(960x640, landscape, consolePort 6050, uploadPort 6060).
 - `VisNovel/simulator/`엔 win32 프리빌트만 있음. mac 시뮬레이터 산출물은 빌드로 새로 만들어야 함.
 - `.cocos-project.json`의 engine_version 표기는 3.7rc0이지만 실제 코드는 3.15.1.
+
+### 4.7 arm64 네이티브 전환 가이드 (Rosetta 탈출 — mac의 본선 작업)
+
+원칙: **Xcode 프로젝트 구조는 유지하고, `external/*/prebuilt/mac/*.a`를 arm64(가능하면
+arm64+x86_64 universal)로 교체**한다. universal로 만들면 기존 링크 설정을 안 건드려도 되고
+인텔 맥 지원도 유지된다.
+
+**1) 재빌드 없이 시스템 라이브러리로 대체 (가장 먼저 할 것)**
+- `zlib` → SDK `libz.tbd`, `iconv` → `libiconv.tbd` (이미 그렇게 링크 중 — §4.3-6의 .tbd 교체만)
+- `curl` → SDK `libcurl.tbd` (macOS 내장 curl, arm64 포함). 프리빌트 libcurl.a 링크 제거.
+- `openssl` + `websockets` → **게임 Lua 코드가 websocket을 쓰는지 먼저 확인**
+  (`VisNovel/src`와 샘플 프로젝트에서 `WebSocket` grep). 안 쓰면 cocos의
+  `network/WebSocket*` 소스와 lua 바인딩을 빌드에서 제외해 **openssl 의존 자체를 제거**(권장).
+  쓰면 openssl 3.x arm64 재빌드 필요.
+
+**2) 소스에서 arm64/universal 재빌드가 필요한 것**
+png, jpeg(libjpeg-turbo 권장), tiff, webp, freetype, chipmunk, glfw.
+- 로컬에 brew/cmake가 없으므로 **`pip3 install cmake ninja`로 조달** (pip 네트워크 가능 확인됨).
+- 공통 패턴: `cmake -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+  -DBUILD_SHARED_LIBS=OFF` → 산출 .a로 `external/<lib>/prebuilt/mac/`의 파일을 교체.
+- 버전 선택: 헤더(`external/<lib>/include/`)까지 같이 갱신할 것. API 호환성은
+  freetype 2.13/libpng 1.6.x/tiff 4.x/webp 1.x 모두 cocos 3.15 사용 범위에서 문제없는 수준.
+  glfw는 3.4 사용 — `CCGLViewImpl-desktop.cpp`가 쓰는 API 위주로 컴파일 에러만 정리하면 됨.
+  chipmunk은 cocos가 요구하는 6.2.x 소스가 `external/chipmunk`에 없으므로 업스트림
+  Chipmunk2D 6.2.2 소스로 빌드.
+- **재현 가능하게 `scripts/build-deps-apple.sh` 하나로 스크립트화**(다운로드 URL·버전 핀 명시)
+  해서 커밋할 것. 다음 사람이 같은 문제를 다시 풀지 않도록.
+
+**3) Lua VM (최난관)**
+- 권장: **LuaJIT 2.1** (openresty/luajit2 브랜치가 관리 잘 됨). arm64 macOS 지원.
+  `MACOSX_DEPLOYMENT_TARGET=11.0 make` + `lipo`로 universal 합성 → `external/lua/luajit/prebuilt/mac/libluajit.a` 교체.
+- arm64에서는 mac 타겟 `OTHER_LDFLAGS`의 `-image_base 100000000 -pagezero_size 10000`
+  **제거** (x86_64 LuaJIT 전용 핵. arm64 LuaJIT는 불필요하며 넣으면 오히려 문제).
+  x86_64 슬라이스를 병행 유지하는 동안에는 arch별 xcconfig 분기(`OTHER_LDFLAGS[arch=x86_64]`)로.
+- 대안: 일반 **Lua 5.1.5** (가장 단순·확실, JIT 없어 성능 하락). cocos lua-bindings는
+  Lua 5.1 API 기준이라 어느 쪽이든 호환. LuaJIT 빌드가 계속 말썽이면 미련 없이 이쪽으로.
+
+**4) 검증 절차**
+- 교체 후 `lipo -info external/*/prebuilt/mac/*.a`로 arm64 포함 전수 확인
+- `xcodebuild ... ARCHS=arm64 ONLY_ACTIVE_ARCH=NO` 빌드 → 네이티브 실행 확인
+  (`file pini_remote-desktop.app/Contents/MacOS/*`가 arm64인지, Activity Monitor에서
+  "Apple" 아키텍처로 뜨는지)
+
+**5) iOS에도 같은 원칙 적용 (후속)**
+- 현 iOS 프리빌트는 실기기 arm64가 있어 당장은 빌드되지만 2016년산이고 arm64 시뮬레이터
+  슬라이스가 없다. 2)의 빌드 스크립트를 iOS/iOS-simulator까지 확장해 **xcframework**로
+  묶는 것을 Phase 3 후속 과제로 잡을 것 (시뮬레이터 개발 경험 + 의존성 보안 업데이트 동시 해결).
+
+### 4.8 vendored cocos2d-x 커스텀 패치 식별 (엔진 교체·업그레이드 전 필수)
+저장소의 cocos2d-x는 vendored라 **업스트림 3.15.1 대비 커스텀 수정이 섞여 있을 수 있다.**
+장기 로드맵(§6 말미)의 어떤 경로를 택하든, 먼저 업스트림 cocos2d-x 3.15.1 릴리즈 tarball과
+`frameworks/cocos2d-x`를 diff 떠서 커스텀 패치 목록을 문서화할 것. 이 목록이 없으면
+엔진 업그레이드 시 기능이 조용히 사라진다.
 
 ## 5. 조사 결과 C — Android [조사 완료]
 
@@ -217,19 +272,24 @@ Apache HttpClient jar(`android-async-http`, `httpclient-4.4.1.1` — API 23+에�
 
 ## 6. 전체 실행 계획 (우선순위 순)
 
-### Phase 1 — macOS 엔진 빌드 (가장 먼저; 다른 모든 것의 기반)
+### Phase 1 — macOS 엔진 빌드 (가장 먼저; 다른 모든 것의 기반) — **목표는 arm64 네이티브**
 1. mac 타겟 Sources에 누락된 게임 C++ 추가 (§4.3-1 목록 — iOS 타겟 소스 목록을 기준으로,
    단 `VideoPlayer.cpp`가 아니라 스텁인 `VideoPlayer_iOS.cpp`를 사용)
 2. mac 타겟 헤더 경로에 `$(SRCROOT)/../Classes/openal/include` 추가 (§4.3-2)
-3. `.dylib` 링크 참조를 `.tbd`/`-l` 플래그로 교체 (§4.3-6)
-4. `xcodebuild -project ... -target pini_remote-desktop -arch x86_64 ONLY_ACTIVE_ARCH=NO build`
+3. `.dylib` 링크 참조를 `.tbd`/`-l` 플래그로 교체하고, 시스템 라이브러리로 대체 가능한
+   프리빌트(curl/zlib/iconv, 가능하면 openssl+websockets 제거)를 먼저 털어냄 (§4.7-1)
+4. (선택) `ARCHS=x86_64` + Rosetta로 중간 스모크 테스트 — **코드 수정의 정합성만 빨리
+   확인하는 용도.** 이 상태를 완성으로 취급하지 말 것 (Rosetta는 macOS 27 이후 소멸 — §1).
+5. §4.7-2·3에 따라 남은 프리빌트를 arm64(universal) 재빌드: 이미지/폰트/물리 계열 +
+   LuaJIT 2.1 (또는 Lua 5.1 전환). `scripts/build-deps-apple.sh`로 스크립트화해 커밋.
+6. `xcodebuild -target pini_remote-desktop ARCHS=arm64 ONLY_ACTIVE_ARCH=NO build`
    → 컴파일 에러 반복 수정. C++ 표준은 `gnu++14` 강제 + `-Wno-*` 완화.
    cocos2d-x 쪽 수정은 최소한으로. 서브프로젝트 3개(cocos2d_libs, lua_bindings, libsimulator)도
-   같은 방식으로 설정 오버라이드 (`xcodebuild` 커맨드라인 `GCC_...`/`CLANG_...` 오버라이드가
-   서브프로젝트에도 전파되므로 프로젝트 파일 수정을 최소화할 수 있음).
-5. LuaJIT 유지 → `-image_base/-pagezero_size` 플래그 보존 (§4.3-5)
-6. 산출물 .app을 `Engine/OSX.app`로 교체 배치(기존 것은 백업) 후 실행 확인
-7. 성공 기준: Rosetta로 창이 뜨고 45674 포트 리슨, 에디터에서 씬 전송 시 렌더링
+   `xcodebuild` 커맨드라인 오버라이드로 같이 처리 (프로젝트 파일 수정 최소화).
+   arm64에서는 `-image_base/-pagezero_size` 링커 플래그 제거 (§4.7-3).
+7. 산출물 .app을 `Engine/OSX.app`로 교체 배치(기존 것은 백업) 후 실행 확인
+8. 성공 기준: **arm64 네이티브로** 창이 뜨고 45674 포트 리슨, 에디터에서 씬 전송 시 렌더링.
+   (`file`로 바이너리가 arm64인지 확인)
 
 ### Phase 2 — 에디터 py3/PySide6 포팅 (§3.5 순서대로)
 - 성공 기준: 에디터 구동 → 샘플 프로젝트(`Editor/sample_proj/`) 열기 → LNX 컴파일 →
@@ -267,6 +327,27 @@ Apache HttpClient jar(`android-async-http`, `httpclient-4.4.1.1` — API 23+에�
 ### Phase 5 — 에디터의 Export 파이프라인 (후순위)
 - Export_Windows/Export_Android는 Windows 도구체인 래퍼라 mac에서는 재작성 필요.
   1차 릴리즈에서는 "에디터에서 개발+미리보기, 배포 빌드는 Xcode/gradle 직접 실행" 워크플로로 타협 가능.
+
+### 장기 로드맵 — "최신 환경 기준" 코드로 (Phase 1~4 완료 후)
+Phase 1~4는 2015년산 코드를 현행 도구에서 **빌드되게** 만드는 작업이고, 아래는 앞으로도
+**계속 살아있게** 만드는 작업이다. 우선순위 순:
+
+1. **렌더러 수명 문제**: cocos 3.15는 OpenGL 전용. OpenGL은 macOS/iOS에서 deprecated이며
+   Rosetta처럼 언젠가 제거된다. 선택지는 둘:
+   - **axmol 엔진으로 이관 (권장)** — cocos2d-x의 커뮤니티 후계 프로젝트. Metal 렌더러,
+     최신 Xcode/AGP/NDK, arm64 전 플랫폼, Lua 바인딩 유지. cocos 3.x API와 가까워
+     이관 비용이 cocos 4.0 대비 크게 나쁘지 않고, 이후 유지보수를 업스트림에 맡길 수 있음.
+   - cocos2d-x 4.0 이관 — Metal은 얻지만 2019년 이후 사실상 개발 중단이라 같은 문제가 재발함.
+   - 어느 쪽이든 **§4.8의 커스텀 패치 diff가 선행 조건.** 게임 쪽 커스텀 C++
+     (ATL, VideoPlayer, TextInput, lua_utils)은 엔진 API 접점이 좁아 이식 가능성 높음.
+2. **의존성 현행화**: §4.7의 빌드 스크립트를 CI(GitHub Actions)로 옮겨 openssl/curl/freetype
+   등을 주기적으로 최신 버전으로 재빌드. 2016년산 프리빌트를 다시는 저장소에 박제하지 말 것.
+3. **에디터 배포 현대화**: py2exe/NSIS/자체 updator 대신 macOS는 py2app 또는 PyInstaller +
+   서명/공증(notarization), Windows는 PyInstaller. `Editor/updator`는 폐기 확정.
+4. **Python/Qt 추적**: PySide6는 Qt 온라인 릴리즈 주기가 빠름 — requirements.txt에 버전 핀 +
+   연 1회 업그레이드 관례를 문서화.
+5. **비디오 재생 복원**(선택): 전 플랫폼에서 스텁화한 VideoPlayer를 ffmpeg 재도입 대신
+   플랫폼 네이티브(AVPlayer / ExoPlayer/Media3)로 재구현하는 편이 유지보수가 싸다.
 
 ## 7. 주의사항 / 함정 목록
 
