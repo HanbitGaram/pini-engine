@@ -23,6 +23,7 @@ from view.BookmarkListWindow import BookmarkListWindow
 from view.Launcher import LauncherView
 from view.Export_Android import ExportAndroidWindow
 from view.Export_Windows import ExportWindowsWindow
+from view.Export_iOS import ExportIOSWindow
 from view.SceneScriptWindow import SceneScriptWindowManager
 from view.AboutPiniWindow import AboutPiniWindow
 from view.CompileProgressWindow import CompileProgressWindow
@@ -178,6 +179,14 @@ def OpenExportAndroid(showAleart=False,discard=None):
 		return
 
 	ExportAndroidWindow(NoriterMain()).exec_()
+
+@MenuBar("파일(&F)/익스포트(&E)/iOS(&I)...")
+def OpenExportIOS(showAleart=False,discard=None):
+	inst = ProjectController()
+	if len(inst.path) == 0 :
+		return
+
+	ExportIOSWindow(NoriterMain()).exec_()
 
 @MenuBar("파일(&F)/0")
 def FileSeparator2(showAlert=False,discard=None):

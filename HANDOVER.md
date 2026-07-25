@@ -1011,3 +1011,138 @@ cocos 소스를 최대한 안 고치는 방향으로 풀었다.
 - **서명.** 현재는 debug 서명이다. release 는 §5.5 (커밋된 keystore) 결론이 먼저 필요하다.
 - `local.properties` 는 머신마다 다른 SDK 경로라 추적에서 뺐다 (`.gitignore` 추가).
   파일 자체는 "must *NOT* be checked into Version Control Systems" 라고 스스로 명시하고 있다.
+
+---
+
+# 13. Phase 5 (익스포트 파이프라인) — iOS
+
+**결론: 에디터 `파일 > 익스포트 > iOS...` 로 `.ipa` 를 만들 수 있다.**
+서명 없이 아카이브까지 도는 것은 검증했다(리소스 주입·Info.plist 치환·arm64 확인).
+`.ipa` 추출은 Apple 팀 ID 가 필요해서 검증하지 못했다.
+
+원본 에디터에는 **iOS 익스포트가 처음부터 없었다** (윈도우/안드로이드 둘뿐).
+Windows 전용 도구로 만들어졌기 때문이다.
+
+## 13.1 왜 로직을 스크립트로 뺐나
+
+`Export_Windows.py`(775줄)와 `Export_Android.py`(1,223줄)는 도구 호출을 파이썬 안에
+직접 박아 놨다 — `luac.exe`, `7z.exe`, `jarsigner.exe`, `makensis.exe`, `adb.exe`.
+그래서 windows 도구체인에 묶여 mac 에서는 통째로 못 쓴다.
+
+같은 전철을 밟지 않도록 iOS 는 빌드 로직을 **`scripts/export-ios.sh`** 에 두고
+에디터는 (1) 리소스 스테이징, (2) 스크립트 실행과 로그 표시만 한다.
+에디터 없이 커맨드라인/CI 에서도 그대로 돌릴 수 있다.
+
+## 13.2 리소스 주입 — 저장소를 건드리지 않는 방법
+
+Xcode 프로젝트에서 `src`/`res` 는 `../../../src`, `../../../res` 를 가리키는
+**폴더 참조**다(`lastKnownFileType = folder`). 즉 빌드 시점에 그 경로에 있는 것이
+통째로 번들된다. 게임마다 다른 내용을 넣겠다고 `Engine/VisNovel/src` 를 덮어쓰면
+에디터의 개발·미리보기 워크플로가 깨진다.
+
+그래서 `pini_remote-mobile` 타겟에 **"Pini export stage"** 빌드 페이즈를 추가했다.
+`PINI_EXPORT_STAGE` 빌드 설정이 지정됐을 때만 번들 안의 `src`/`res` 를 스테이징
+내용으로 갈아끼우고, 지정되지 않으면 아무 일도 하지 않는다. 평소 빌드는 영향이 없다.
+
+스크립트는 아카이브 후 번들에 `_export_execute_.lua` 가 있는지 확인한다.
+주입이 조용히 실패하면 **엉뚱한 게임(또는 원격 모드)이 담긴 앱**이 나오는데,
+빌드는 성공하므로 알아채기 어렵다.
+
+## 13.3 공유 스킴 추가
+
+`xcodebuild` 의 `archive` 액션은 `-target` 이 아니라 `-scheme` 을 요구한다.
+기존 스킴은 자동 생성본이라 `xcuserdata/`(머신별) 아래에만 있어서 다른 환경에서는
+재현되지 않는다. `xcshareddata/xcschemes/pini_remote-mobile.xcscheme` 를 저장소에 넣었다.
+
+## 13.4 Info.plist
+
+`ios/Info.plist` 는 번들 ID 가 `com.p.p` 로 하드코딩돼 있고 버전도 고정이다.
+저장소 파일을 고치는 대신 **스테이징에 복사해서 PlistBuddy 로 수정**하고
+`INFOPLIST_FILE` 로 그 경로를 넘긴다.
+
+## 13.5 스테이징 순서
+
+`Export_Windows` 와 같게 맞췄다. 프로젝트 컴파일 결과(`<project>/build/`)를 먼저 깔고
+그 위에 엔진 기본 `src`/`res` 를 덮는다(엔진 쪽이 우선). `.obj` 는 제외한다.
+마지막에 `_export_execute_.lua` 를 쓴다 — 이 파일이 없으면 런타임이 원격 모드로 뜬다.
+
+## 13.6 입력 검증
+
+번들 ID 를 정규식으로 먼저 거른다. 안 그러면 **10~20분짜리 아카이브가 끝난 뒤에야**
+xcodebuild 가 거부한다. Xcode 설치 여부와 iOS 프로젝트 존재도 창을 열 때 확인한다.
+
+## 13.7 남은 과제
+
+- **`.ipa` 추출 경로는 미검증.** Apple 팀 ID 가 있어야 돌려볼 수 있다.
+- **앱 아이콘 교체 미지원.** 현재는 저장소의 `Icon-*.png` 가 그대로 들어간다.
+  최신 방식은 Asset Catalog 이며 제출에는 1024x1024 마케팅 아이콘이 필요하다(§11).
+- **리소스 암호화(`res.prz`) 미지원.** 윈도우 익스포트는 `7z.exe` 로 한다.
+  mac 에서는 파이썬 `zipfile` 이나 `ditto` 로 다시 만들어야 한다.
+- **안드로이드 익스포트는 여전히 Windows 전용이다.** Phase 4 에서 Gradle 빌드는
+  올렸으니, `Export_Android.py` 를 `./gradlew assembleRelease` 호출로 바꾸면
+  같은 구조로 정리할 수 있다.
+
+---
+
+# 14. 커밋된 비밀 처리 (§5.5 결론)
+
+사용자 판단: **새 키를 발급하고 기존 것은 이력에서 제거한다.**
+
+## 14.1 왜 교체가 유일한 해결책인가
+
+`piniremote.keystore` 는 평문 비밀번호(`ant.properties`: `02881212`)와 함께 공개
+저장소에 있었다. **파일과 비밀번호가 모두 노출된 서명키는 되돌릴 수 없이 손상된 것**이다.
+제3자가 같은 키로 서명한 APK 를 만들 수 있다. 이력에서 지워도 이미 클론·포크한 사본은
+회수할 수 없다.
+
+이력 정리 중에 **`test_keystore/`** 도 발견했다. 별도 keystore(`com.n.a12`)와
+비밀번호가 적힌 `정보.txt` 가 같이 들어 있었다. 함께 제거 대상에 넣었다.
+
+## 14.2 한 일
+
+- `scripts/make-release-keystore.sh` — 새 키 발급. PKCS12/RSA 4096/30년.
+  커밋하지 않는 `keystore.properties` 를 함께 생성한다.
+- `build.gradle` 에 `signingConfigs.release` 추가. `keystore.properties` 또는
+  `PINI_KEYSTORE*` 환경변수에서 읽는다. **설정이 없으면 signingConfig 를 아예 만들지
+  않아** debug 빌드는 키 없이도 그대로 된다. release 를 서명 없이 돌리면 경고를 띄운다.
+- 세 파일을 추적 해제하고 `.gitignore` 에 `*.keystore`, `*.jks`, `keystore.properties`
+  등을 추가했다. **파일 자체는 디스크에 남겼다** — 구 키 보관본이다.
+- `git-filter-repo` 1차 실행으로 `Engine/` 경로의 세 파일과 Fabric API key/secret
+  문자열을 제거했다.
+
+## 14.3 아직 안 끝났다
+
+프로젝트가 예전에 `novel/` 아래 있다가 `Engine/` 으로 옮겨져서, **`novel/` 시절 경로에
+사본이 남아 있다.** `test_keystore/` 도 그대로다. 나머지는
+**`scripts/purge-secrets-history.sh`** 로 처리한다.
+
+```sh
+scripts/purge-secrets-history.sh
+```
+
+백업:
+
+```
+~/projects/pini-engine-backup-20260726.bundle          # 전체 이력 (642MB)
+~/projects/pini-engine-backup-20260726-secrets/        # 구 keystore 사본
+```
+
+복구는 `git clone pini-engine-backup-20260726.bundle`.
+
+## 14.4 원격 반영은 별도 결정이다
+
+이력을 다시 쓰면 **모든 커밋 SHA 가 바뀐다.** 원격에 반영하려면 force push 가 필요하고,
+이건 되돌릴 수 없다.
+
+- 기존 PR/이슈의 커밋 링크가 깨진다.
+- 포크(Scincy/pini-engine)와 이미 클론한 사본에는 옛 이력이 남는다.
+- GitHub 캐시에도 남을 수 있어, 확실히 지우려면 GitHub 지원에 요청해야 한다.
+
+그래서 스크립트는 push 를 대신 하지 않고 안내만 출력한다.
+`git-filter-repo` 가 지운 origin 은 다시 붙여 뒀다.
+
+## 14.5 Play 앱 서명을 쓰고 있었다면
+
+기존 앱이 Play 앱 서명(App Signing by Google Play)에 등록돼 있다면, 구글에 **업로드 키
+교체**를 요청할 수 있다. 그 경우에는 신규 등록 없이 새 키로 업데이트를 계속할 수 있으니
+새 앱을 올리기 전에 Play Console 을 먼저 확인할 것.

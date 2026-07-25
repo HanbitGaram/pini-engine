@@ -587,6 +587,7 @@
 				F293B3C515EB7BE500256477 /* Frameworks */,
 				F293B3C615EB7BE500256477 /* Resources */,
 				3EC988201966433500A45E0E /* ShellScript */,
+				AA10E5900000000000000001 /* Pini export stage */,
 			);
 			buildRules = (
 			);
@@ -764,6 +765,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "find ${SRCROOT}/../../../src/ -name \"*\" -exec touch -cm {} \\;\nfind ${SRCROOT}/../../../res/ -name \"*\" -exec touch -cm {} \\;";
+		};
+		AA10E5900000000000000001 /* Pini export stage */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Pini export stage";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# 에디터의 iOS 익스포트(Editor/pini/view/Export_iOS.py)용.\n#\n# src/res 는 ../../../src, ../../../res 를 가리키는 폴더 참조라서 게임마다 다른\n# 내용을 넣으려면 저장소를 건드려야 한다. 그러면 개발/미리보기 워크플로가 깨진다.\n# 대신 PINI_EXPORT_STAGE 가 지정됐을 때만 번들 안의 src/res 를 스테이징 내용으로\n# 갈아끼운다. 평소 빌드에는 아무 영향이 없다.\nif [ -z \"${PINI_EXPORT_STAGE}\" ]; then\n\techo \"note: PINI_EXPORT_STAGE 미지정 - 저장소의 src/res 를 그대로 쓴다\"\n\texit 0\nfi\nif [ ! -d \"${PINI_EXPORT_STAGE}/src\" ]; then\n\techo \"error: PINI_EXPORT_STAGE 에 src/ 가 없다: ${PINI_EXPORT_STAGE}\" >&2\n\texit 1\nfi\nRES=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\necho \"note: 익스포트 리소스 적용 ${PINI_EXPORT_STAGE} -> ${RES}\"\nrm -rf \"${RES}/src\" \"${RES}/res\"\ncp -R \"${PINI_EXPORT_STAGE}/src\" \"${RES}/src\"\ncp -R \"${PINI_EXPORT_STAGE}/res\" \"${RES}/res\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
