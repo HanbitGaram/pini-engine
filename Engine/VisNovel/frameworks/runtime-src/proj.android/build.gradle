@@ -99,9 +99,54 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    /*
+     * 릴리스 서명.
+     *
+     * 예전에는 keystore 파일과 평문 비밀번호가 ant.properties 에 담겨 **저장소에 커밋**돼
+     * 있었다(§5.5). 그 키는 손상된 것으로 보고 폐기했다.
+     *
+     * 새 키는 `scripts/make-release-keystore.sh` 로 발급하고, 설정은 커밋하지 않는
+     * keystore.properties 나 환경변수로 넘긴다. 설정이 없으면 signingConfig 를 아예
+     * 만들지 않으므로 debug 빌드는 키 없이도 그대로 된다.
+     */
+    def ksProps = new Properties()
+    def ksFile = file('keystore.properties')
+    if (ksFile.exists()) { ksFile.withInputStream { ksProps.load(it) } }
+
+    def ksStore    = ksProps.getProperty('storeFile')     ?: System.getenv('PINI_KEYSTORE')
+    def ksStorePwd = ksProps.getProperty('storePassword') ?: System.getenv('PINI_KEYSTORE_PASSWORD')
+    def ksAlias    = ksProps.getProperty('keyAlias')      ?: System.getenv('PINI_KEY_ALIAS')
+    def ksKeyPwd   = ksProps.getProperty('keyPassword')   ?: System.getenv('PINI_KEY_PASSWORD') ?: ksStorePwd
+    def hasSigning = ksStore && ksStorePwd && ksAlias
+
+    if (hasSigning) {
+        signingConfigs {
+            release {
+                storeFile     file(ksStore)
+                storePassword ksStorePwd
+                keyAlias      ksAlias
+                keyPassword   ksKeyPwd
+            }
+        }
+    }
+
     buildTypes {
         debug   { minifyEnabled false }
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (hasSigning) {
+                signingConfig signingConfigs.release
+            } else {
+                // 서명 없이 assembleRelease 를 돌리면 설치 불가능한 unsigned APK 가 조용히
+                // 나온다. 왜 그런지 알려 준다.
+                gradle.taskGraph.whenReady { graph ->
+                    if (graph.allTasks.any { it.name.toLowerCase().contains('release') }) {
+                        logger.warn('경고: 서명 설정이 없어 release APK 가 서명되지 않는다. ' +
+                                    'scripts/make-release-keystore.sh 로 키를 발급할 것.')
+                    }
+                }
+            }
+        }
     }
 
     lint { abortOnError false }

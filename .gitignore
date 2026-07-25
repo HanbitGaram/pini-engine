@@ -39,3 +39,11 @@ Engine/VisNovel/frameworks/runtime-src/proj.android/libs/armeabi-v7a/
 Engine/VisNovel/frameworks/runtime-src/proj.android/.gradle/
 Engine/VisNovel/frameworks/runtime-src/proj.android/build/
 Engine/VisNovel/frameworks/runtime-src/proj.android/local.properties
+
+# --- 안드로이드 서명키 (HANDOVER §5.5) -------------------------------
+# 예전에는 keystore 와 평문 비밀번호가 커밋돼 있었다. 다시는 들어가지 않게 막는다.
+*.keystore
+*.jks
+Engine/VisNovel/frameworks/runtime-src/proj.android/keystore.properties
+Engine/VisNovel/frameworks/runtime-src/proj.android/ant.properties
+Engine/VisNovel/frameworks/runtime-src/proj.android/fabric.properties
