@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 import os
 import json
@@ -12,22 +10,22 @@ import shutil
 import compiler
 from slpp import slpp
 import json
-from Queue import Queue
+from queue import Queue
 
-import os_encoding
 import traceback
 
 from openpyxl import load_workbook
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 import codecs
 
 class ProjectController(QObject):
 	class ProjectModel(QObject):pass
 	#signal
-	changed = Signal(unicode)
+	changed = Signal(str)
 
 	_instance = None
 	_isInit   = False
@@ -61,7 +59,7 @@ class ProjectController(QObject):
 			fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 			fin = QTextStream(fp)
-			fin.setCodec("UTF-8")
+			fin.setEncoding(QStringConverter.Utf8)
 			FILEDATA = fin.readAll()
 			fin = None
 			fp.close()
@@ -77,19 +75,19 @@ class ProjectController(QObject):
 		
 		try:
 			self._screenWidth = _d["width"]
-		except Exception, e:
+		except Exception as e:
 			pass
 		try:
 			self._screenHeight = _d["height"]
-		except Exception, e:
+		except Exception as e:
 			pass
 		try:
 			self._fullscreen = _d["fullscreen"]
-		except Exception, e:
+		except Exception as e:
 			pass
 		try:
 			self._orientation = _d["orientation"]
-		except Exception, e:
+		except Exception as e:
 			pass
 
 		self._defines = []
@@ -98,7 +96,7 @@ class ProjectController(QObject):
 			_d = json.loads(fileOpen(DEFFILE))
 
 			self._defines = _d["defines"]
-		except Exception, e:
+		except Exception as e:
 			pass
 
 	def projectInfoSave(self):
@@ -114,7 +112,7 @@ class ProjectController(QObject):
 		fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 		out = QTextStream(fp)
-		out.setCodec("UTF-8")
+		out.setEncoding(QStringConverter.Utf8)
 		out.setGenerateByteOrderMark(False)
 		out << json.dumps(PROJECT_INFO)
 		out = None
@@ -128,7 +126,7 @@ class ProjectController(QObject):
 		fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 		out = QTextStream(fp)
-		out.setCodec("UTF-8")
+		out.setEncoding(QStringConverter.Utf8)
 		out.setGenerateByteOrderMark(False)
 		out << json.dumps(DEFINE_INFO)
 		out = None
@@ -144,7 +142,7 @@ class ProjectController(QObject):
 		fp.open(QIODevice.WriteOnly | QIODevice.Text)
 			
 		out = QTextStream(fp)
-		out.setCodec("UTF-8")
+		out.setEncoding(QStringConverter.Utf8)
 		out.setGenerateByteOrderMark(False)
 		out << json.dumps(checks)
 
@@ -180,7 +178,7 @@ class ProjectController(QObject):
 			fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 			fin = QTextStream(fp)
-			fin.setCodec("UTF-8")
+			fin.setEncoding(QStringConverter.Utf8)
 
 			text = fin.readAll()
 
@@ -194,7 +192,7 @@ class ProjectController(QObject):
 			fp.open(QIODevice.WriteOnly | QIODevice.Text)
 				
 			out = QTextStream(fp)
-			out.setCodec("UTF-8")
+			out.setEncoding(QStringConverter.Utf8)
 			out.setGenerateByteOrderMark(False)
 			out << json.dumps(table)
 
@@ -205,21 +203,25 @@ class ProjectController(QObject):
 			return json.loads(text)
 
 		def checksum(fpath):
-			return base64.b64encode(hashlib.md5(open(fpath, 'rb').read()).digest())
+			# py2 에서는 base64 결과가 str 이었다. py3 에서는 bytes 이므로 str 로 되돌린다.
+			return base64.b64encode(hashlib.md5(open(fpath, 'rb').read()).digest()).decode("ascii")
 
 		def fileNameMD(fname):
-			fname.encode(os_encoding.cp())
-			return base64.encodestring(fname.encode(os_encoding.cp())).replace("\n","").replace("=","_").replace("+","_0_").replace("/","__0")
+			# py2 는 os_encoding.cp() (mac 은 utf-8, win 은 cp949) 로 encode 했다.
+			# py3 에서는 utf-8 로 통일한다. mac 에서는 결과 문자열이 이전과 동일하다.
+			# encodestring 은 py3.9 에서 제거되어 encodebytes 로 바뀌었고 bytes 를 돌려준다.
+			return base64.encodebytes(fname.encode("utf-8")).decode("ascii").replace("\n","").replace("=","_").replace("+","_0_").replace("/","__0")
 	
 		def getV(v):
-			ret = unicode( "", "utf-8")	
-			if v != None:
-				if isinstance(v, unicode)==False:
-					ret = str(v)
-					ret = unicode(ret, "utf-8")
-				else:
-					ret = v
-			return  ret
+			# py2 에서는 str(bytes) 를 unicode 로 승격시키던 코드였다.
+			# py3 에서는 문자열이 이미 str 이라 bytes 만 디코드해 주면 된다.
+			if v is None:
+				return ""
+			if isinstance(v, bytes):
+				return v.decode("utf-8")
+			if isinstance(v, str):
+				return v
+			return str(v)
 
 		def findWordInCompiledObject(o,marge):
 			for v in o : 
@@ -227,18 +229,19 @@ class ProjectController(QObject):
 			 		for w in v["strs"] : 
 			 			marge[w] = marge.get(w, 0) + 1
 
-		DEFAULT_PROJ_RES = u"resource/proj_default"
+		DEFAULT_PROJ_RES = "resource/proj_default"
 		for root, dirs, files in os.walk(DEFAULT_PROJ_RES, topdown=False):
 			for name in files:
 				fullpath = os.path.join(root, name)
-				dstDir = PROJPATH + root.replace(DEFAULT_PROJ_RES,"") + "\\"
+				# 경로 구분자를 윈도우식으로 하드코딩하면 mac/리눅스에서 그대로 깨진다.
+				dstDir = PROJPATH + root.replace(DEFAULT_PROJ_RES,"") + os.sep
 				dst = dstDir + name
 
-				if name == u"libdef.lnx" : 
+				if name == "libdef.lnx" : 
 					if checksum(fullpath) != checksum(dst) : 
 						try:
 							os.remove(dst)
-						except Exception, e:
+						except Exception as e:
 							pass
 						shutil.copyfile(fullpath,dst)
 				elif name == "TMP" : 
@@ -248,7 +251,7 @@ class ProjectController(QObject):
 						try:
 							if not os.path.exists(dstDir):
 								os.makedirs(dstDir)
-						except Exception, e:
+						except Exception as e:
 							pass
 						shutil.copyfile(fullpath,dst)
 						
@@ -256,7 +259,7 @@ class ProjectController(QObject):
 		try:
 			versionDir = os.path.join("..","pini_ver.inf")
 			compilerVersion = readAll(versionDir)
-		except Exception, e:
+		except Exception as e:
 			pass
 
 		checks = {}
@@ -270,7 +273,7 @@ class ProjectController(QObject):
 				checks = {}
 			elif checks["compilerVersion"] != compilerVersion:
 				checks = {}
-		except Exception, e:
+		except Exception as e:
 			pass
 
 		checks["compilerVersion"] = compilerVersion
@@ -335,7 +338,7 @@ class ProjectController(QObject):
 					try:
 						if checks[ID] == checksum(fullpath) : 
 							continue
-					except Exception, e:
+					except Exception as e:
 						continue
 					
 				######### file compile! #########
@@ -345,7 +348,7 @@ class ProjectController(QObject):
 						luaToolChain = compiler.LNXToolChain()
 					if name == "libdef.lnx" or (not isPrecompile):
 						# print "compile!" , fullpath
-						CompileProgressWindow(None).setText(u"컴파일 중 - " + name)
+						CompileProgressWindow(None).setText("컴파일 중 - " + name)
 						l,o,errLine = luaToolChain.compileFile(fullpath,dist,name != "libdef.lnx")
 					else:
 						o = "[]"
@@ -363,7 +366,7 @@ class ProjectController(QObject):
 						# fp.open(QIODevice.WriteOnly | QIODevice.Text)
 						
 						# out = QTextStream(fp)
-						# out.setCodec("UTF-8")
+						# out.setEncoding(QStringConverter.Utf8)
 						# out.setGenerateByteOrderMark(False)
 						# out << json.dumps(o)
 
@@ -396,10 +399,10 @@ class ProjectController(QObject):
 											col_count = 0
 											for cell in row:
 												if cell.value != None : 
-													row_table[unicode(col_count)] = getV(cell.value)
+													row_table[str(col_count)] = getV(cell.value)
 												col_count = col_count+1
 											if len(row_table) > 0 : 
-												table[sheet.title][unicode(row_count)] = row_table
+												table[sheet.title][str(row_count)] = row_table
 											row_count = row_count+1
 
 								with codecs.open(dist, "w", "utf-8") as fp : 
@@ -409,7 +412,7 @@ class ProjectController(QObject):
 								# fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 								# out = QTextStream(fp)
-								# out.setCodec("UTF-8")
+								# out.setEncoding(QStringConverter.Utf8)
 								# out.setGenerateByteOrderMark(False)
 								# out << json.dumps(table, ensure_ascii=False,encoding="utf-8")
 								# out = None
@@ -417,16 +420,16 @@ class ProjectController(QObject):
 								# wb = None
 
 							#shutil.copyfile(fullpath,dist)
-						except Exception, e:
+						except Exception as e:
 							traceback.print_exc(file=sys.stdout)
 				else:
 					try:
 						shutil.copyfile(fullpath,dist)
-					except Exception, e:
-						print e
+					except Exception as e:
+						print(e)
 				try:
 					checks[ID] = checksum(fullpath)
-				except Exception, e:
+				except Exception as e:
 					pass
 
 		if not isPrecompile:
@@ -442,7 +445,7 @@ class ProjectController(QObject):
 		# fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 		# out = QTextStream(fp)
-		# out.setCodec("UTF-8")
+		# out.setEncoding(QStringConverter.Utf8)
 		# out.setGenerateByteOrderMark(False)
 		# out<<"return "<<slpp.encode(PROJECT_INFO)<<"\n"
 		# out = None
@@ -451,14 +454,14 @@ class ProjectController(QObject):
 		#FILEMANGER
 		with codecs.open(BUILDPATH+"FILEMANS.lua", "w", "utf-8") as fp : 
 			fp.write("FILES = {}\n")
-			for k,v in fileMans.iteritems() :
+			for k,v in fileMans.items() :
 				fp.write("FILES[\""+k+"\"]=\""+v+"\"\n")
 
 		# fp = QFile(BUILDPATH+"FILEMANS.lua")
 		# fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 		# out = QTextStream(fp)
-		# out.setCodec("UTF-8")
+		# out.setEncoding(QStringConverter.Utf8)
 		# out.setGenerateByteOrderMark(False)
 		# out<<"FILES = {}\n"
 		# for k,v in fileMans.iteritems() :
@@ -470,14 +473,14 @@ class ProjectController(QObject):
 		#IMAGEMANAGER
 		with codecs.open(BUILDPATH+"IMGMANS.lua", "w", "utf-8") as fp : 
 			fp.write("IMAGES = {}\n")
-			for k,v in imgMans.iteritems() :
+			for k,v in imgMans.items() :
 				fp.write("IMAGES[\""+k+"\"]="+slpp.encode(v)+"\n")
 
 		# fp = QFile(BUILDPATH+"IMGMANS.lua")
 		# fp.open(QIODevice.WriteOnly | QIODevice.Text)
 
 		# out = QTextStream(fp)
-		# out.setCodec("UTF-8")
+		# out.setEncoding(QStringConverter.Utf8)
 		# out.setGenerateByteOrderMark(False)
 		# out<<"IMAGES = {}\n"
 		# for k,v in imgMans.iteritems() :
@@ -578,7 +581,7 @@ class WorkerController(QObject):
 	def doWork(self):
 		try:
 			task = self.workQueue.get(False)
-		except Exception, e:
+		except Exception as e:
 			self.isWorking = False
 			return
 
@@ -614,11 +617,11 @@ class WorkerThread(QThread):
 			result = self.work()
 			# print "__END WORK"
 
-		except Exception, e:
-			print " >>WorkerThread",e
+		except Exception as e:
+			print(" >>WorkerThread",e)
 			traceback.print_exc(file=sys.stdout)
 			result = str(e) + "\n" + traceback.format_exc()
-			print " <<WorkerThread",e
+			print(" <<WorkerThread",e)
 
 		finally:
 			self.workFinished.emit([self.callback,result,self.callbackInst])

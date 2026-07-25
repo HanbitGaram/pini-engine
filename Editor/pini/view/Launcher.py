@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtGui,QtCore
+from PySide6 import QtGui,QtCore,QtWidgets
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.UI.Widget import Widget 
@@ -24,7 +22,7 @@ class LauncherView(Widget):
 		super(LauncherView,self).__init__(parent)
 		self.GUI()
 		
-		self.setWindowTitle(u"프로젝트 선택")
+		self.setWindowTitle("프로젝트 선택")
 		self.resize(400,350)
 
 		self.onClose = None
@@ -45,14 +43,15 @@ class LauncherView(Widget):
 				self.sampleDir = os.path.join("..","sample_proj","sample")
 			else:
 				self.sampleDir = os.path.join(".","sample")
-			self.sampleDir = unicode(self.sampleDir)
+			self.sampleDir = str(self.sampleDir)
 			self.find_all_proj(self.sampleDir,self.samplelist)
-		except Exception, e:
-			print e
+		except Exception as e:
+			print(e)
 		self.samplelist.doubleClicked.connect(self.selectExample)
 
 		if Settings()["workspace"] is None : 
-			document = QtGui.QDesktopServices.storageLocation(QtGui.QDesktopServices.DocumentsLocation)
+			# Qt5 부터 QDesktopServices.storageLocation() 은 QStandardPaths 로 옮겨졌다.
+			document = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
 
 			workspace = os.path.join(document,"pini_project")
 			self.setWorkspace(workspace)
@@ -67,10 +66,10 @@ class LauncherView(Widget):
 	@LayoutGUI
 	def GUI(self):
 		self.tab = self.Layout.tab()
-		print self.tab
-		with self.tab.tab(u"내 프로젝트") : 
+		print(self.tab)
+		with self.tab.tab("내 프로젝트") : 
 			with Layout.HBox(5):
-				self.Layout.label(u"작업폴더")
+				self.Layout.label("작업폴더")
 				self.workspace = self.Layout.input(Settings()["workspace"],None)
 				self.Layout.button("...",self.findWorkspace).setFixedHeight(20)
 
@@ -82,23 +81,23 @@ class LauncherView(Widget):
 				self.Layout.gap(5)
 
 				with Layout.VBox():
-					self.Layout.button(u"프로젝트 실행",self.onClickedSelectProject)
+					self.Layout.button("프로젝트 실행",self.onClickedSelectProject)
 					self.Layout.gap(2)
-					self.Layout.button(u"프로젝트 생성",self.newProject)
+					self.Layout.button("프로젝트 생성",self.newProject)
 					self.Layout.gap(2)
-					self.Layout.button(u"프로젝트 삭제",self.removeProject)
+					self.Layout.button("프로젝트 삭제",self.removeProject)
 					
 					self.Layout.spacer()
 
-					self.Layout.button(u"공식사이트 가기",self.gotoSite)
+					self.Layout.button("공식사이트 가기",self.gotoSite)
 					self.Layout.gap(2)
-					self.Layout.button(u"닫기",self.close)
+					self.Layout.button("닫기",self.close)
 
-		with self.tab.tab(u"예제") : 
+		with self.tab.tab("예제") : 
 			self.samplelist = self.Layout.listbox(self.projectFactory,[])
 
 	def findWorkspace(self):
-		path = QtGui.QFileDialog.getExistingDirectory(parent=self,caption="Workspace",dir=Settings()["workspace"])
+		path = QtWidgets.QFileDialog.getExistingDirectory(parent=self,caption="Workspace",dir=Settings()["workspace"])
 		if path : self.setWorkspace(path)
 
 	def setWorkspace(self,path):
@@ -106,7 +105,7 @@ class LauncherView(Widget):
 		absSampleDir = QDir(self.sampleDir).absolutePath()
 
 		if absPath == absSampleDir:
-			QtGui.QMessageBox.warning(self,u"피니엔진",u"샘플 폴더는 작업폴더로 지정할 수 없습니다.")
+			QtWidgets.QMessageBox.warning(self,"피니엔진","샘플 폴더는 작업폴더로 지정할 수 없습니다.")
 			self.findWorkspace()
 			return
 
@@ -120,14 +119,20 @@ class LauncherView(Widget):
 		self.find_all_proj(path,self.list)
 
 	def find_all_proj(self,path,_list):
-		print "find_all_proj",path
+		print("find_all_proj",path)
 		projs = []
-		for dirname in os.listdir(path):
-			fullpath = os.path.join(path,dirname,"PROJ")
-			if os.path.exists(fullpath):
-				projs.append(dirname)
-		if len(projs) == 0 : 
-			projs = [u"생성된 프로젝트가 없습니다."]
+		# 작업폴더가 아직 없을 수 있다. 첫 실행이거나, macOS 라면 개인정보 보호(TCC) 때문에
+		# ~/Documents 쓰기가 아직 허용되지 않아 QDir.mkpath() 가 실패한 경우다.
+		# 예전에는 여기서 os.listdir 이 그대로 예외를 던져 런처가 죽었다.
+		if os.path.isdir(path):
+			for dirname in os.listdir(path):
+				fullpath = os.path.join(path,dirname,"PROJ")
+				if os.path.exists(fullpath):
+					projs.append(dirname)
+		else:
+			print("작업폴더가 없거나 접근할 수 없습니다:",path)
+		if len(projs) == 0 :
+			projs = ["생성된 프로젝트가 없습니다."]
 		_list.data = projs
 
 	def projectFactory(self,data):
@@ -143,7 +148,7 @@ class LauncherView(Widget):
 			self.selectProject(idx)
 
 	def selectProject(self,idx):
-		if u"생성된 프로젝트가 없습니다." == self.list.data[idx] :
+		if "생성된 프로젝트가 없습니다." == self.list.data[idx] :
 			return;
 			
 		ProjectController().path = os.path.join(Settings()["workspace"],self.list.data[idx])
@@ -156,16 +161,16 @@ class LauncherView(Widget):
 			example_name = self.samplelist.data[idx]
 
 			os.path.join(self.sampleDir,example_name)
-			text = u'"'+example_name+u'"예제를 작업폴더에 복사하시겠습니까?'
-			btn = QtGui.QMessageBox.question(self, u"피니엔진",text, QtGui.QMessageBox.Yes , QtGui.QMessageBox.No )
+			text = '"'+example_name+'"예제를 작업폴더에 복사하시겠습니까?'
+			btn = QtWidgets.QMessageBox.question(self, "피니엔진",text, QtWidgets.QMessageBox.Yes , QtWidgets.QMessageBox.No )
 			
-			if btn == QtGui.QMessageBox.Yes : 
+			if btn == QtWidgets.QMessageBox.Yes : 
 				ret = exampleCopyer(self.sampleDir,example_name,self).exec_()
 				if ret : 
 					self.loadingWorkspace(Settings()["workspace"])
 					self.tab.focus(0)
-		except Exception, e:
-			print e
+		except Exception as e:
+			print(e)
 
 	def changedSelected(self,indices):
 		if len(indices) <= 0:
@@ -183,20 +188,20 @@ class LauncherView(Widget):
 			idx = self.selectedIndices[0].data
 			if not idx in self.list.data:
 				return
-			btn = QtGui.QMessageBox.question(self, u"피니엔진", 
-											 idx+u"(을/를) 정말로 삭제하시겠습니까?\n프로젝트 삭제는 복원이 안됩니다.",
-									   		 QtGui.QMessageBox.Yes , QtGui.QMessageBox.No )
-			if btn == QtGui.QMessageBox.Yes : 
+			btn = QtWidgets.QMessageBox.question(self, "피니엔진", 
+											 idx+"(을/를) 정말로 삭제하시겠습니까?\n프로젝트 삭제는 복원이 안됩니다.",
+									   		 QtWidgets.QMessageBox.Yes , QtWidgets.QMessageBox.No )
+			if btn == QtWidgets.QMessageBox.Yes : 
 				idx = self.list.data.index(idx)
 				fullpath = os.path.join(Settings()["workspace"],self.list.data[idx])
 				if ProjectController().path == fullpath : 
-					QtGui.QMessageBox.warning(self,u"피니엔진",u"현재 실행 중인 프로젝트는 삭제가 불가능합니다. 엔진을 완전 종료 한 뒤 삭제해주시기바랍니다.")
+					QtWidgets.QMessageBox.warning(self,"피니엔진","현재 실행 중인 프로젝트는 삭제가 불가능합니다. 엔진을 완전 종료 한 뒤 삭제해주시기바랍니다.")
 					return 
 				try:
 					shutil.rmtree(fullpath)
-					QtGui.QMessageBox.information(self,u"피니엔진",u"성공적으로 삭제했습니다.")
-				except Exception, e:
-					QtGui.QMessageBox.warning(self,u"피니엔진",u"프로젝트를 완전히 삭제하지 못했습니다. 프로젝트를 엑세스하고 있는 모든 프로그램을 종료 한 뒤 삭제해주세요.")
+					QtWidgets.QMessageBox.information(self,"피니엔진","성공적으로 삭제했습니다.")
+				except Exception as e:
+					QtWidgets.QMessageBox.warning(self,"피니엔진","프로젝트를 완전히 삭제하지 못했습니다. 프로젝트를 엑세스하고 있는 모든 프로그램을 종료 한 뒤 삭제해주세요.")
 				self.loadingWorkspace(Settings()["workspace"])
 
 	def gotoSite(self):
@@ -223,16 +228,16 @@ class exampleCopyer(ModalWindow):
 	@LayoutGUI
 	def GUI(self):
 		with Layout.HBox():
-			self.Layout.label(u"작업폴더 : "+Settings()["workspace"])
+			self.Layout.label("작업폴더 : "+Settings()["workspace"])
 
 		with Layout.HBox(5):
-			self.Layout.label(u"프로젝트 이름")
+			self.Layout.label("프로젝트 이름")
 			self.Layout.input(self.name,self.projectName)
 
 		with Layout.HBox():
 			self.Layout.spacer()
-			self.Layout.button(u"복사",self.useExample)
-			self.Layout.button(u"취소",self.close)
+			self.Layout.button("복사",self.useExample)
+			self.Layout.button("취소",self.close)
 	
 	def projectName(self,text):
 		self.name = text
@@ -242,13 +247,13 @@ class exampleCopyer(ModalWindow):
 		source = os.path.join(self.dir,self.origin)
 		
 		if not os.path.isdir(dist) :
-			print source,dist
+			print(source,dist)
 			shutil.copytree(source,dist)
-			QtGui.QMessageBox.information(self,"Noriter",u"정상적으로 프로젝트가 생성되었습니다.")
+			QtWidgets.QMessageBox.information(self,"Noriter","정상적으로 프로젝트가 생성되었습니다.")
 			self.ret = True
 			self.close()
 		else:
-			QtGui.QMessageBox.warning(self,"Noriter",u"작업폴더에 동일한 프로젝트명의 폴더가 이미 있습니다.\n프로젝트명을 변경해주세요.")
+			QtWidgets.QMessageBox.warning(self,"Noriter","작업폴더에 동일한 프로젝트명의 폴더가 이미 있습니다.\n프로젝트명을 변경해주세요.")
 
 	def exec_(self):
 		super(exampleCopyer,self).exec_()
@@ -266,16 +271,16 @@ class newProject(ModalWindow):
 	@LayoutGUI
 	def GUI(self):
 		with Layout.HBox():
-			self.Layout.label(u"작업폴더 : "+Settings()["workspace"])
+			self.Layout.label("작업폴더 : "+Settings()["workspace"])
 
 		with Layout.HBox(5):
-			self.Layout.label(u"프로젝트 이름")
+			self.Layout.label("프로젝트 이름")
 			self.Layout.input("",self.projectName)
 
 		with Layout.HBox():
 			self.Layout.spacer()
-			self.Layout.button(u"생성",self.makeProject)
-			self.Layout.button(u"취소",self.close)
+			self.Layout.button("생성",self.makeProject)
+			self.Layout.button("취소",self.close)
 
 	def exec_(self):
 		super(newProject,self).exec_()
@@ -291,7 +296,7 @@ class newProject(ModalWindow):
 		fullpath = os.path.join(Settings()["workspace"],self.project)
 		if not os.path.exists(fullpath):
 			
-			DEFAULT_FILES = u"resource/proj_default"
+			DEFAULT_FILES = "resource/proj_default"
 			shutil.copytree(DEFAULT_FILES,fullpath)
 			'''
 			for root, dirs, files in os.walk(DEFAULT_FILES, topdown=False):
@@ -322,8 +327,8 @@ class newProject(ModalWindow):
 					if name == "TMP" : 
 						os.remove(path)
 
-			QtGui.QMessageBox.information(self,"Noriter",u"정상적으로 프로젝트가 생성되었습니다.")
+			QtWidgets.QMessageBox.information(self,"Noriter","정상적으로 프로젝트가 생성되었습니다.")
 
 			self.close()
 		else:
-			QtGui.QMessageBox.warning(self,"Noriter",u"작업폴더에 동일한 프로젝트명의 폴더가 이미 있습니다.\n프로젝트명을 변경해주세요.")
+			QtWidgets.QMessageBox.warning(self,"Noriter","작업폴더에 동일한 프로젝트명의 폴더가 이미 있습니다.\n프로젝트명을 변경해주세요.")

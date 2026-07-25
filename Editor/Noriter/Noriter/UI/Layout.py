@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 from functools import wraps
 
 from Noriter.UI import Widget as nWidget
@@ -16,7 +14,7 @@ from Noriter.UI.Splitter import Splitter
 # window -> widget
 
 class Layout(object):
-	class HBox(QtGui.QHBoxLayout):
+	class HBox(QtWidgets.QHBoxLayout):
 		def __init__(self,spacing=0):
 			super(Layout.HBox, self).__init__(None)
 			self.Layout = Layout.getInstance()
@@ -31,9 +29,9 @@ class Layout(object):
 			self.Layout.End(self)
 
 		def Next(self):
-			print "HBox Next"
+			print("HBox Next")
 
-	class VBox(QtGui.QVBoxLayout):
+	class VBox(QtWidgets.QVBoxLayout):
 		def __init__(self,spacing=0):
 			super(Layout.VBox, self).__init__(None)
 			self.Layout = Layout.getInstance()
@@ -48,9 +46,9 @@ class Layout(object):
 			self.Layout.End(self)
 
 		def Next(self):
-			print "HBox Next"
+			print("HBox Next")
 				
-	class GridBox(QtGui.QGridLayout):
+	class GridBox(QtWidgets.QGridLayout):
 		def __init__(self,spacing=0):
 			super(Layout.GridBox, self).__init__(None)
 			self.Layout = Layout.getInstance()
@@ -107,13 +105,13 @@ class Layout(object):
 			
 		if widget._layout is None:
 			layout = None
-			if isinstance(widget, QtGui.QDockWidget):
-				contents = QtGui.QWidget()
+			if isinstance(widget, QtWidgets.QDockWidget):
+				contents = QtWidgets.QWidget()
 				widget.setWidget(contents)
 
-				layout = QtGui.QVBoxLayout(contents)
+				layout = QtWidgets.QVBoxLayout(contents)
 				layout.setObjectName("dockLayout")
-			elif isinstance(widget, QtGui.QMainWindow):
+			elif isinstance(widget, QtWidgets.QMainWindow):
 				if self.mainWindow is None:
 					self.mainWindow = widget
 				else:
@@ -121,14 +119,14 @@ class Layout(object):
 					return
 				self.buildMenu()
 
-				centralwidget = QtGui.QWidget(widget)
-				layout = QtGui.QVBoxLayout(centralwidget)
+				centralwidget = QtWidgets.QWidget(widget)
+				layout = QtWidgets.QVBoxLayout(centralwidget)
 
 				widget.setCentralWidget(centralwidget)
-			elif isinstance(widget, QtGui.QDialog):
-				layout = QtGui.QVBoxLayout(widget)
-			elif isinstance(widget, QtGui.QWidget):
-				layout = QtGui.QVBoxLayout(widget)
+			elif isinstance(widget, QtWidgets.QDialog):
+				layout = QtWidgets.QVBoxLayout(widget)
+			elif isinstance(widget, QtWidgets.QWidget):
+				layout = QtWidgets.QVBoxLayout(widget)
 
 			if layout is None:
 				print("ERROR : Layout.OnWidget")
@@ -180,9 +178,9 @@ class Layout(object):
 	def button(self, text, func):
 		if self.widget is None: return
 
-		btn = QtGui.QPushButton(self.widget)
+		btn = QtWidgets.QPushButton(self.widget)
 		btn.setMinimumSize(0,30)
-		btn.setText(unicode(text))
+		btn.setText(str(text))
 		if func is not None:
 			btn.clicked.connect(func)
 		self.addWidget(btn)
@@ -190,8 +188,8 @@ class Layout(object):
 
 	def label(self,text):
 		if self.widget is None: return
-		label = QtGui.QLabel(self.widget)
-		label.setText(unicode(text))
+		label = QtWidgets.QLabel(self.widget)
+		label.setText(str(text))
 		label.setStyleSheet("*{background-color:none;}")
 		self.addWidget(label)
 		return label
@@ -202,7 +200,7 @@ class Layout(object):
 
 	def gap(self,gap):
 		if self.widget is None: return
-		w = QtGui.QWidget(self.widget)
+		w = QtWidgets.QWidget(self.widget)
 		w.setFixedSize(gap,gap)
 		w.setStyleSheet("*{background-color:none;}")
 		self.addWidget(w)
@@ -210,7 +208,7 @@ class Layout(object):
 
 	def slider(self, value, min, max, changed):
 		if self.widget is None: return
-		s = QtGui.QSlider(self.widget)
+		s = QtWidgets.QSlider(self.widget)
 		s.setValue(value)
 		s.setMaximum(max)
 		s.setMinimum(min)
@@ -230,7 +228,7 @@ class Layout(object):
 
 	def input(self, text, changed):
 		if self.widget is None: return
-		s = QtGui.QLineEdit(self.widget)
+		s = QtWidgets.QLineEdit(self.widget)
 		s.setText(text)
 		if changed is not None:
 			s.textChanged.connect(changed)
@@ -239,7 +237,7 @@ class Layout(object):
 
 	def stepper(self, value, changed):
 		if self.widget is None: return
-		s = QtGui.QSpinBox(self.widget)
+		s = QtWidgets.QSpinBox(self.widget)
 		s.setValue(value)
 		if changed is not None:
 			s.valueChanged.connect(changed)
@@ -248,7 +246,7 @@ class Layout(object):
 
 	def checkbox(self,text, bool, changed):
 		if self.widget is None: return
-		s = QtGui.QCheckBox(self.widget)
+		s = QtWidgets.QCheckBox(self.widget)
 		s.setChecked(bool)
 		s.setText(text)
 		if changed is not None:
@@ -258,7 +256,7 @@ class Layout(object):
 
 	def radiobox(self,text, bool, changed):
 		if self.widget is None: return
-		s = QtGui.QRadioButton(self.widget)
+		s = QtWidgets.QRadioButton(self.widget)
 		s.setText(text)
 		s.setChecked(bool)
 		if changed is not None:
@@ -268,7 +266,7 @@ class Layout(object):
 
 	def textedit(self, text, changed):
 		if self.widget is None: return
-		s = QtGui.QTextEdit(self.widget)
+		s = QtWidgets.QTextEdit(self.widget)
 		s.setText(text)
 		if changed is not None:
 			s.textChanged.connect(changed)
@@ -289,23 +287,23 @@ class Layout(object):
 
 	def hline(self):
 		if self.widget is None: return
-		line = QtGui.QFrame(self.widget)
-		line.setFrameStyle(QtGui.QFrame.HLine)
+		line = QtWidgets.QFrame(self.widget)
+		line.setFrameStyle(QtWidgets.QFrame.HLine)
 		self.addWidget(line)
 		line.setFixedHeight(1)
 		return line
 
 	def vline(self):
 		if self.widget is None: return
-		line = QtGui.QFrame(self.widget)
-		line.setFrameStyle(QtGui.QFrame.VLine)
+		line = QtWidgets.QFrame(self.widget)
+		line.setFrameStyle(QtWidgets.QFrame.VLine)
 		line.setFixedWidth(1)
 		self.addWidget(line)
 		return line
 
 	def img(self,path):
 		if self.widget is None: return
-		label = QtGui.QLabel(self.widget)
+		label = QtWidgets.QLabel(self.widget)
 		label.setPixmap(QtGui.QPixmap(path))
 		label.setScaledContents(True)
 		self.addWidget(label)
@@ -325,7 +323,7 @@ class Layout(object):
 
 	def combo(self,arr,editable=False):
 		if self.widget is None: return 
-		cb = QtGui.QComboBox(self.widget)
+		cb = QtWidgets.QComboBox(self.widget)
 		cb.addItems(arr)
 		cb.setEditable(editable)
 		self.addWidget(cb)
@@ -341,11 +339,11 @@ class Layout(object):
 		return True
 
 	def _clear(self,layout):
-		indexes = range(layout.count())
+		indexes = list(range(layout.count()))
 		indexes.sort(reverse=True)
 		for index in indexes:
 			item = layout.takeAt(index)
-			if isinstance(item,QtGui.QLayout) : 
+			if isinstance(item,QtWidgets.QLayout) : 
 				self._clear(item)
 			widget = item.widget()
 			if widget: widget.deleteLater()
@@ -353,7 +351,7 @@ class Layout(object):
 	##################################
 	def addWidget(self, widget):
 		if len(self.layoutStack[-1]) <= 0:
-			print "addWidget failed!!!!!!"
+			print("addWidget failed!!!!!!")
 			return
 		last = self.layoutStack[-1][-1]
 		last.addWidget(widget)
@@ -368,7 +366,7 @@ class Layout(object):
 	###################################
 
 	def menu(self, text, keyseq, func):
-		arr = unicode(text).split("/")
+		arr = str(text).split("/")
 		current = self.menubars
 		for _str in arr:
 			if _str == "0" : 
@@ -390,12 +388,12 @@ class Layout(object):
 		if current is None:
 			current = self.menubars
 			if '__menu__' not in self.menubars:
-				menubar = QtGui.QMenuBar()
+				menubar = QtWidgets.QMenuBar()
 				self.menubars['__menu__'] = menubar
 				self.mainWindow.setMenuBar(menubar)
 
 
-		for k, v in current.iteritems():
+		for k, v in current.items():
 			if isinstance(v, dict):
 				if '__menu__' not in current[k]:
 					if k.startswith("sep_"):
@@ -417,7 +415,7 @@ class Layout(object):
 
 							current['__menu__'].addAction(current[k]['__menu__'])
 						else:
-							current[k]['__menu__'] = QtGui.QMenu(current['__menu__'])
+							current[k]['__menu__'] = QtWidgets.QMenu(current['__menu__'])
 							current[k]['__menu__'].setObjectName(k)
 							current[k]['__menu__'].setTitle(k)
 

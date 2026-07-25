@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtGui,QtCore
+from PySide6 import QtGui,QtCore,QtWidgets
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.utils.Settings import Settings
@@ -22,7 +20,7 @@ class AboutPiniWindow(ModalWindow):
 
 	@LayoutGUI
 	def GUI(self):
-		self.Layout.label(self.trUtf8("<b>피니엔진 오픈소스 버전</b>"))
+		self.Layout.label(self.tr("<b>피니엔진 오픈소스 버전</b>"))
 
 		compilerVersion = ""
 		try:
@@ -31,30 +29,30 @@ class AboutPiniWindow(ModalWindow):
 			fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 			fin = QTextStream(fp)
-			fin.setCodec("UTF-8")
+			fin.setEncoding(QStringConverter.Utf8)
 
 			compilerVersion = fin.readAll()
 
 			fin = None
 			fp.close()
-		except Exception, e:
+		except Exception as e:
 			pass
 
 		with Layout.HBox(5):
 			self.Layout.img("resource/logoIcon64.png").setFixedSize(80,80)
 
 			with Layout.VBox(5):
-				self.Layout.label(self.trUtf8("Client version hash : ") + compilerVersion)
+				self.Layout.label(self.tr("Client version hash : ") + compilerVersion)
 				self.Layout.gap(10)
-				self.Layout.label(self.trUtf8("Copyrightⓒ 2014-2015 Nooslab"))
+				self.Layout.label(self.tr("Copyrightⓒ 2014-2015 Nooslab"))
 				self.Layout.gap(10)
-				self.Layout.label(self.trUtf8("이 프로그램은 누구나 자유롭게 사용할 수 있습니다."))
+				self.Layout.label(self.tr("이 프로그램은 누구나 자유롭게 사용할 수 있습니다."))
 				# self.Layout.gap(10)
-				# self.Layout.label(self.trUtf8("Special Thanks To"))
-				# self.Layout.label(self.trUtf8("블루"))
-				# self.Layout.label(self.trUtf8("하언"))
-				# self.Layout.label(self.trUtf8(""))
-				# self.Layout.label(self.trUtf8(""))
+				# self.Layout.label(self.tr("Special Thanks To"))
+				# self.Layout.label(self.tr("블루"))
+				# self.Layout.label(self.tr("하언"))
+				# self.Layout.label(self.tr(""))
+				# self.Layout.label(self.tr(""))
 				pass
 				
 	def Modified(self):
@@ -72,5 +70,5 @@ class AboutPiniWindow(ModalWindow):
 				proCtrl.screenHeight = h
 				proCtrl.orientation = self.orientation.isChecked()
 				#proCtrl.fullscreen = self.fullscreen.isChecked()
-		except Exception, e:
+		except Exception as e:
 			pass

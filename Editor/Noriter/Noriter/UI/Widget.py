@@ -1,6 +1,6 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 
-class Widget(QtGui.QWidget):
+class Widget(QtWidgets.QWidget):
 	def __init__(self,parent=None):
 		super(Widget,self).__init__(parent)
 		self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)

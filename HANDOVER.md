@@ -9,6 +9,8 @@
 - 작업 브랜치: `modernize/mac-ios-android`
 - **Phase 1 (macOS arm64 네이티브 엔진 빌드) 완료. → 상세는 §9 참조.**
   `scripts/build-deps-apple.sh` + `scripts/build-mac.sh` 두 개로 재현 가능.
+- **Phase 2 (에디터 py3 / PySide6 포팅) 완료. → 상세는 §10 참조.**
+  `scripts/build-editor-natives.sh` 로 atl.so 를 만든 뒤 `Editor/pini` 에서 `python3 main.py`.
 - 로컬 Python 3.13.7 (`/Library/Frameworks/Python.framework/Versions/3.13/bin/python3`)에
   PySide6 6.11.1, lupa 2.8, Pillow, openpyxl, appdirs, ply 설치 완료 (pip 네트워크 사용 가능)
   + cmake 4.4.0 / ninja 1.13 (pip 로 설치, 의존성 빌드에 사용)
@@ -297,9 +299,7 @@ Apache HttpClient jar(`android-async-http`, `httpclient-4.4.1.1` — API 23+에�
 8. 성공 기준: **arm64 네이티브로** 창이 뜨고 45674 포트 리슨, 에디터에서 씬 전송 시 렌더링.
    (`file`로 바이너리가 arm64인지 확인)
 
-### Phase 2 — 에디터 py3/PySide6 포팅 (§3.5 순서대로)
-- 성공 기준: 에디터 구동 → 샘플 프로젝트(`Editor/sample_proj/`) 열기 → LNX 컴파일 →
-  Phase 1 엔진으로 "실행" 동작.
+### Phase 2 — 에디터 py3/PySide6 포팅 — ✅ **완료 (2026-07-25). 결과는 §10 참조**
 
 ### Phase 3 — iOS
 1. deployment target 15.0으로 통일 상향(메인+서브프로젝트 3개), `VALID_ARCHS` 제거,
@@ -497,3 +497,125 @@ scripts/build-mac.sh            # 앱 빌드 (Release)
   장기적으로는 CI 로 옮기고 저장소에서 빼는 것이 맞다 (장기 로드맵 2번).
 - cocos 쪽 수정은 §4.8 의 "업스트림 대비 커스텀 패치" 목록에 이번 것도 포함시켜야 한다.
   구분을 위해 이번 수정은 전부 주석에 이유를 적어 두었다.
+
+## 10. Phase 2 수행 결과 — 에디터 py3 / PySide6 포팅 (2026-07-25)
+
+### 10.1 결과
+- `Editor/pini` + `Editor/Noriter` 의 **모듈 47개가 전부 import 되고**, 에디터가 끝까지 부팅해
+  런처까지 뜬다. 실행 중 트레이스백 없음.
+- 검증한 경로: **에디터 구동 → 샘플 프로젝트(`집나간멍구`) 열기 → lupa 프리뷰 초기화 →
+  LNX 컴파일 → `build/` 에 .lua 7개 생성**까지 자동 테스트로 통과.
+
+실행 방법:
+```
+scripts/build-editor-natives.sh          # 1회. atl.so (arm64) 생성
+cd Editor/pini && python3 main.py
+```
+
+### 10.2 변환 도구
+Python 3.13 은 `2to3`/`lib2to3` 가 제거되었다. 유지보수 포크인 **`fissix`** (`pip install fissix`)
+로 fixer 를 골라 돌렸다. 제외한 fixer 와 그 이유:
+- `fix_idioms` / `fix_ws_comma` / `fix_set_literal` — 순수 미관 변경이라 diff 만 커진다.
+- `fix_reload` — `imp.reload`(deprecated) 로 바꾼다. `importlib.reload` 로 직접 처리했다.
+- `fix_import` — 이 코드베이스는 `pini/` 루트 기준 **절대 import** 라 py3 에서도 그대로 동작한다.
+  (암시적 상대 import 는 Windows 전용 `pepy/` 에만 있다.)
+
+### 10.3 자동 변환이 **틀리게** 고친 것 — 반드시 알고 있어야 할 함정
+1. **`compiler.py` 의 LNX 렉서가 통째로 죽었다.** 이 모듈은 `def filter(lexer, add_endmarker)`
+   라는 **자체 제너레이터**를 정의해 두는데, 2to3 의 `fix_filter` 가 내장 filter 로 착각해
+   `list(filter(...))` 로 감쌌다. 그러면 `token()` 의 `next()` 가 리스트에서 터진다.
+   → 같은 사고를 찾으려면 "모듈이 내장 이름(filter/map/zip/range)을 재정의했는지" 를 먼저 볼 것.
+   이 저장소에서는 `compiler.py` 한 곳뿐이었다.
+2. **`fix_unicode` 가 `unicode("가","utf-8")` 을 `str("가","utf-8")` 로 바꿔 놨다.** py3 에서
+   `str(str, enc)` 은 TypeError 다. 소스가 이미 utf-8 이므로 리터럴만 남기면 된다 (17곳).
+
+### 10.4 py2 → py3 (문법 외)
+- `os_encoding.py` **삭제.** cp949/utf-8 을 오가던 인코딩 모델을 없애고 str 로 통일 (§3.5-1).
+  `updator/` 는 자체 사본을 갖고 있어 영향이 없다.
+- `reload(sys)` + `sys.setdefaultencoding("utf-8")` 34개 파일에서 제거.
+- `mbcs`(윈도우 전용 코덱)로 디코드하던 곳 → utf-8 / 디코드 불필요 (`ATL.py`, `LoaderView`,
+  `Export_Android`, `FontManager`).
+- `PJOIN()` 3곳: 경로 조각을 로케일 bytes 로 encode 하고 구분자를 `\` 로 강제하던 것을
+  str + `os.sep` 으로. 이게 없으면 mac 에서 `tempSave\PROJ` 같은 경로가 만들어진다.
+- `ProjectController.compileProjWork` 의 `+ "\\"` → `os.sep`.
+  **이 버그 때문에 컴파일이 `module\libdef.lnx` 를 찾다 죽었고, 파일명에 백슬래시가 들어간
+  파일이 실제로 만들어졌다.** (저장소 전체에서 mac 을 깨뜨리는 백슬래시 조립은 이 한 곳뿐이었다.
+  나머지 60여 곳은 `"\\"→"/"` 정규화라 mac 에서 무해하고, 역변환은 전부 Windows 익스포트 전용이다.)
+- `base64.encodestring`(py3.9 제거) → `encodebytes` + `.decode("ascii")`.
+- `os.system('start "" ...')`(윈도우 cmd 내장) → `QDesktopServices.openUrl` (Menu, AssetLibrary).
+- `Exception.message` → `str(e)`.
+
+### 10.5 Qt4(PySide) → Qt6(PySide6)
+- 임포트 47개 파일 전환. `from PySide.QtGui import *` 는 **QtGui + QtWidgets 두 줄**로 풀고,
+  `QtGui.<위젯>` 참조는 `QtWidgets.<위젯>` 으로 (Qt5 에서 위젯이 분리됐고, Qt6 에서 QAction 은
+  다시 QtGui 로 돌아왔다).
+- 제거된 API 대응:
+  `QApplication.desktop()`→`primaryScreen().geometry()`, `QRegExp`→`QRegularExpression`,
+  `QDesktopServices.storageLocation`→`QStandardPaths.writableLocation`,
+  `QFontMetrics.width`→`horizontalAdvance`, `setTabStopWidth`→`setTabStopDistance`,
+  `trUtf8`→`tr` (22곳), `QPalette.Background`→`QPalette.Window`,
+  `QGraphicsView.matrix()`→`transform()`, `QGraphicsItem.scale(sx,sy)`→
+  `setTransform(QTransform.fromScale(...), True)`, `QTextStream.setCodec`→`setEncoding` (25곳),
+  `Qt.CTRL+Qt.Key_X`→`|`.
+- **QtWebKit → QTextBrowser.** 도움말 툴팁 2개(`ExplainWebView`/`ExplainHoverWebView`)는
+  "HTML 조각 표시 + 링크는 외부 브라우저" 가 전부라 무거운 QtWebEngine 대신 QTextBrowser 로
+  충분하다. 공통 베이스 `ExplainBrowserBase` 를 두었다.
+- **phonon → QtMultimedia.** 리소스 뷰어의 사운드 미리듣기(`SoundPlayer`)를 `QMediaPlayer` +
+  `QAudioOutput` 으로 이식. 외부 인터페이스는 그대로 유지했다.
+
+### 10.6 자동 변환으로는 절대 안 잡히는, 실제로 깨져 있던 것들
+1. **테마 CSS 가 통째로 적용되지 않고 있었다.** `LoaderView.step1` 이
+   `setStyleSheet(str(QByteArray))` 를 했는데, PySide(Qt4)에서는 내용이 나왔지만 PySide6 는
+   **repr**(`b'QToolTip\n{...'`)을 돌려준다. Qt 가 "Could not parse application stylesheet" 만
+   찍고 조용히 무시한다. → `.data().decode("utf-8")`.
+2. **런처가 뜨자마자 앱이 그대로 종료됐다.** Qt6 는 **부모가 있는 창을
+   `quitOnLastWindowClosed` 계산에 포함하지 않는다.** 런처가 `NoriterMain` 의 자식이라
+   스플래시가 닫히고 메인 창이 숨겨지는 순간 Qt 가 "마지막 창이 닫혔다" 고 판단했다.
+   → 런처를 부모 없는 독립 창으로 만들고 파이썬 참조만 붙들어 GC 를 막는다 (LoaderView, Menu).
+3. **lupa 가 Lua 5.5 로 프리뷰를 돌리고 있었다.** 엔진은 LuaJIT 2.1(Lua 5.1)인데 lupa 2.x 의
+   기본 `LuaRuntime` 은 번들된 최신 Lua 다. `collectgarbage('setpause')` 가 5.4+ 에서 사라져
+   프리뷰 초기화가 실패했다. → `from lupa.lua51 import LuaRuntime`.
+   **프리뷰와 엔진의 Lua 버전은 반드시 맞춰야 한다.**
+4. **Qt6 의 `QFontDatabase.addApplicationFont` 는 상대 경로를 열지 못한다**(-1 반환).
+   Qt4 에서는 cwd 기준 상대 경로가 통했다. → `os.path.abspath()` + 실패 시 방어.
+5. 첫 실행 시 작업폴더(`~/Documents/pini_project`)가 없으면 런처가 `os.listdir` 에서 죽었다.
+   macOS 는 개인정보 보호(TCC) 때문에 터미널에서 `QDir.mkpath()` 가 실패할 수 있다.
+   → 폴더가 없어도 빈 목록으로 넘어가게 했다.
+
+### 10.7 네이티브 모듈
+`scripts/build-editor-natives.sh` 추가. 옛 `Engine/ATL_compile.py` /
+`Editor/nativeUtil/native_compile.py` 는 python2 인 데다 인자 배열에 쉼표가 빠져
+`-DGPP_FOR_PYTHON=1-E` 가 되는 등 그대로는 동작하지 않는다.
+- `atl.so` (arm64) 를 `Editor/pini/` 에 생성. 없으면 **모듈 29개가 import 조차 안 된다.**
+- 빌드하면서 `Classes/utils.h` 의 실제 버그를 고쳤다: `GPP_FOR_PYTHON` 빌드에서는 cocos2d.h 를
+  포함하지 않아 `CC_TARGET_PLATFORM` 과 `CC_PLATFORM_WIN32` 가 **둘 다 미정의(=0)** 가 되고,
+  `0 == 0` 이 참이 되어 mac 에서도 `<windows.h>` 를 포함하려 했다.
+- `ATL.cpp` 의 dangling pointer 2건도 수정 (소멸된 임시/스택 객체 주소를 반환하던 곳).
+  에디터가 `restype=c_char_p` 로 읽는 함수라 실제 크래시 요인이었다.
+- `native.so`(BSP 이미지 패킹)는 **포팅된 코드 어디에서도 로드하지 않아** 기본 빌드에서 뺐다
+  (`WITH_NATIVE=1` 로 opt-in). 저장소의 것은 Mach-O 도 아닌 다른 플랫폼 산출물이라 덮어쓰지 않는다.
+
+### 10.8 에디터 → 엔진 실행 연결 (§3.5-7)
+- `Menu.__run__` 의 darwin 분기에 **리소스 동기화를 추가**했다. 윈도우 분기는 실행 직전에
+  `src`/`res` 를 런타임 폴더로 다시 복사하는데 mac 분기에는 그게 통째로 없어서,
+  `Engine/VisNovel/src` 를 고쳐도 .app 안에 구워진 예전 것이 계속 실행됐다.
+- 개발 중에는 `scripts/build-mac.sh` 산출물(arm64)이 있으면 그것을 우선 실행한다.
+  `Engine/OSX.app` 은 2015년 x86_64 산출물이라 Apple Silicon 에서 Rosetta 가 필요하다.
+- `open` → `open -n` (실행 버튼을 다시 누르면 새 인스턴스).
+
+### 10.9 남은 것 / 알려진 제약
+- **`--fullscreen` 이 mac 에서 동작하지 않는다.** 엔진 mac 타겟이 인자를 읽지 않는다
+  (`AppDelegate(bool fullscreen = false)` 기본값 고정). 지원하려면 `mac/SimulatorApp.mm` 에서
+  인자를 파싱해 `new AppDelegate(fullscreen)` 으로 넘겨야 한다.
+- **`Engine/OSX.app` 교체는 아직 안 했다.** 20MB 짜리 추적 바이너리를 갈아엎는 일이라
+  사용자 판단이 필요하다. 지금은 위 9.8 의 "빌드 산출물 우선" 로직으로 우회한다.
+- **Windows 익스포트 경로(`Export_Windows.py` / `Export_Android.py`)는 문법만 py3 로 바꿨고
+  동작 검증은 하지 않았다.** `pepy`(PE 아이콘 교체)는 win32 가드 안으로 옮겼다 — 현대 Pillow
+  에서 삭제된 `PIL._binary` 를 쓰므로 Windows 에서도 손을 봐야 한다. (Phase 5 과제)
+- `clone.py` 는 `gittle`(py2 시절 git 라이브러리)에 의존해 import 되지 않는다. 에디터 어디에서도
+  쓰지 않는다. `updator/` 폐기와 함께 정리 대상.
+- `exec_()` 36곳은 PySide6 6.11 에서 아직 동작하지만 deprecated 다. 다만 `Export_Windows` 의
+  `EditWindow` 가 `exec_` 를 **오버라이드**하고 있어, 일괄 치환하면 오버라이드가 끊긴다.
+  바꿀 때는 정의부와 호출부를 같이 고칠 것.
+- Retina 에서의 좌표 계산(정수 나눗셈이 py3 에서 true division 이 된 곳)은 실제 GUI 조작 중
+  드러날 수 있다. 현재까지 구동/컴파일 경로에서는 문제가 없었다.

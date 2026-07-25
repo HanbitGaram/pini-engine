@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 from command.FontManager import FontManager
 import re
 import os
 
 from controller.ProjectController import ProjectController
 from compiler import *
-from lupa import LuaRuntime
+# 엔진은 LuaJIT 2.1 (Lua 5.1 문법/표준 라이브러리) 로 동작한다. lupa 2.x 의 기본
+# LuaRuntime 은 번들된 최신 Lua(5.5) 라서 collectgarbage('setpause') 처럼 5.1 에만 있는
+# API 가 깨지고 프리뷰가 실제 엔진과 다르게 동작한다. 5.1 런타임을 명시적으로 쓴다.
+from lupa.lua51 import LuaRuntime
 
 from config import *
 from Noriter.views.NoriterMainWindow import *
 
 import time
 import traceback
-import os_encoding
 import string
 
 import ATL
@@ -98,7 +99,7 @@ class GraphicsProtocolObject(object):
 		def __init__(self,v):
 			super(GraphicsProtocolObject.Node,self).__init__()
 			self.setPos(float(v.x),float(v.y))
-			self.scale(float(v.scaleX),float(v.scaleY))
+			self.setTransform(QTransform.fromScale(float(v.scaleX),float(v.scaleY)), True)
 			self.setRotation(v.rotate)
 
 			self.anchorX = v.anchorX
@@ -142,7 +143,7 @@ class GraphicsProtocolObject(object):
 			self.setRotation(data.rotate)
 			self.setOpacity(float(data.opacity)/255.0)
 			self.setColor(float(data.color[1]),float(data.color[2]),float(data.color[3]))
-			self.scale(float(data.scaleX),float(data.scaleY))
+			self.setTransform(QTransform.fromScale(float(data.scaleX),float(data.scaleY)), True)
 			self.setPos(float(data.x),float(data.y))
 
 			self.anchorX = data.anchorX
@@ -209,7 +210,7 @@ class GraphicsProtocolObject(object):
 			self.color = QColor(float(v.color[1]),float(v.color[2]),float(v.color[3]))
 			self.opacity = float(v.opacity)
 			self.setRotation(v.rotate)
-			self.scale(float(v.scaleX),float(v.scaleY))
+			self.setTransform(QTransform.fromScale(float(v.scaleX),float(v.scaleY)), True)
 			self.setPos(float(v.x),float(v.y))
 
 			self.anchorX = v.anchorX
@@ -237,7 +238,7 @@ class GraphicsProtocolObject(object):
 			self.width = float(v.width)
 			self.height = float(v.height)
 			self.setPos(float(v.x),float(v.y)-self.height)
-			self.scale(float(v.scaleX),float(v.scaleY))
+			self.setTransform(QTransform.fromScale(float(v.scaleX),float(v.scaleY)), True)
 			self.setRotation(v.rotate)
 
 			self.anchorX = v.anchorX
@@ -293,10 +294,10 @@ class GraphicsProtocolObject(object):
 			return self.textSize[text][strSize][font]
 
 		def projPath(self):
-			return ProjectController().path.encode(os_encoding.cp())
+			return ProjectController().path
 
 		def buildPath(self):
-			return (ProjectController().path+"/build/").encode(os_encoding.cp())
+			return (ProjectController().path+"/build/")
 
 class ScriptGraphicsProtocol(object):
 	_instance = None
@@ -322,13 +323,13 @@ class ScriptGraphicsProtocol(object):
 		self.lua = LuaRuntime()
 		############ FOR TEST ############
 		PROJPATH = ProjectController().path.replace(QDir.separator(),"/")
-		BUILDPATH = PROJPATH + u"/build/?.lua;"
-		BUILDPATH1 = PROJPATH + u"/build/scene/?.lua;"
-		BUILDPATH2 = PROJPATH + u"/build/module/?.lua;"
+		BUILDPATH = PROJPATH + "/build/?.lua;"
+		BUILDPATH1 = PROJPATH + "/build/scene/?.lua;"
+		BUILDPATH2 = PROJPATH + "/build/module/?.lua;"
 
-		BUILDPATH = BUILDPATH.encode(os_encoding.cp())
-		BUILDPATH1 = BUILDPATH1.encode(os_encoding.cp())
-		BUILDPATH2 = BUILDPATH2.encode(os_encoding.cp())
+		BUILDPATH = BUILDPATH
+		BUILDPATH1 = BUILDPATH1
+		BUILDPATH2 = BUILDPATH2
 		
 		self.lua.execute("package.path = \"\"")
 		self.lua.execute("function packagePath(path) package.path = package.path .. ';'..path end")		
@@ -385,14 +386,14 @@ class ScriptGraphicsProtocol(object):
 
 			self.clear()
 
-		except Exception, e:
+		except Exception as e:
 			fp = QFile("errorout.txt")
 			fp.open(QIODevice.WriteOnly | QIODevice.Text)
 			
 			out = QTextStream(fp)
-			out.setCodec("UTF-8")
+			out.setEncoding(QStringConverter.Utf8)
 			out.setGenerateByteOrderMark(False)
-			out<<e.message
+			out<<str(e)
 
 			out = None
 			fp.close()
@@ -402,14 +403,14 @@ class ScriptGraphicsProtocol(object):
 	def XLSXClear(self):
 		try:
 			self.lua.execute("XLSX_CLEAR()")
-		except Exception, e:
-			print e
+		except Exception as e:
+			print(e)
 
 	def RefreshBuildPath(self):
 		try:
 			self.lua.execute("REFRESH_BUILD_PATH()")
-		except Exception, e:
-			print e
+		except Exception as e:
+			print(e)
 
 	def clear(self):
 		if self.XVM == None:
@@ -464,14 +465,14 @@ class ScriptGraphicsProtocol(object):
 				dialog = self.lua.globals().pini.Dialog
 				dialog.Preview(dialog)
 				dialog.showAllLetters(dialog)
-			except Exception, e:
-				print "************************************"
-				print e
-				print "************************************"
+			except Exception as e:
+				print("************************************")
+				print(e)
+				print("************************************")
 				traceback.print_exc(file=sys.stdout)
 
 		nodes = {}
-		for k,v in sorted(self.Display.items(),key=lambda obj: obj[1].drawOrder ) : 
+		for k,v in sorted(list(self.Display.items()),key=lambda obj: obj[1].drawOrder ) : 
 			if v.visible : 
 				node = None
 				if v.type == "Node" :
@@ -557,8 +558,8 @@ class ScriptGraphicsProtocol(object):
 						self.showDialog = True
 
 			self.display()
-		except Exception, e:
-			print "error>>",e
+		except Exception as e:
+			print("error>>",e)
 			traceback.print_exc(file=sys.stdout)
 
 def connectMarkupCompletion(editor):
@@ -566,7 +567,7 @@ def connectMarkupCompletion(editor):
 
 def fontMarkupCompletion(editor):
 	fontList = []
-	for k,v in FontManager().fonts.iteritems():
+	for k,v in FontManager().fonts.items():
 		if (k == "NanumGothicCoding"):
 			continue
 		fontList.append(k)
@@ -574,21 +575,21 @@ def fontMarkupCompletion(editor):
 
 class ScriptMarkup(QObject):
 	markups = [
-		[u"색상"," 0 0 0",True,None],
-		[u"클릭","",False,None],
-		[u"비활성","",False,None],
-		[u"크기"," 30",True,None],
-		[u"자간"," 30",False,None],
-		[u"행간"," 20",False,None],
-		[u"공백"," 0",False,None],
-		[u"연결"," \"\"",True,connectMarkupCompletion],
-		[u"대기"," 1",False,None],
-		[u"시간"," 0.02",False,None],
-		[u"폰트"," \"\"",True,fontMarkupCompletion],
-		[u"클린","",False,None],
-		[u"닫기","",False,None],
-		[u"켜기","",False,None],
-		[u"=","",False,None]
+		["색상"," 0 0 0",True,None],
+		["클릭","",False,None],
+		["비활성","",False,None],
+		["크기"," 30",True,None],
+		["자간"," 30",False,None],
+		["행간"," 20",False,None],
+		["공백"," 0",False,None],
+		["연결"," \"\"",True,connectMarkupCompletion],
+		["대기"," 1",False,None],
+		["시간"," 0.02",False,None],
+		["폰트"," \"\"",True,fontMarkupCompletion],
+		["클린","",False,None],
+		["닫기","",False,None],
+		["켜기","",False,None],
+		["=","",False,None]
 	]
 
 	@staticmethod
@@ -632,8 +633,8 @@ class ScriptCommand(QObject):
 		funcs = ScriptGraphicsProtocol().getFuncInfo()
 		try:
 			return name in funcs
-		except Exception, e:
-			print e
+		except Exception as e:
+			print(e)
 			return False
 
 	@staticmethod
@@ -645,7 +646,7 @@ class ScriptCommand(QObject):
 			# print "a[1][\"idx\"]=",a[1]["idx"]
 			return a[1]["idx"]
 
-		funcs = sorted(funcs.items(),key=mySorted)
+		funcs = sorted(list(funcs.items()),key=mySorted)
 
 		cmds = [ k for k,v in funcs ]
 		expl = [ v["default"] if "default" in v else "" for k,v in funcs ]
@@ -659,7 +660,7 @@ class ScriptCommand(QObject):
 		def mySorted(a):
 			return a[1]["idx"]
 
-		funcs = sorted(funcs.items(),key=mySorted)
+		funcs = sorted(list(funcs.items()),key=mySorted)
 	
 		for k,v in funcs:
 			if k == cmd:
@@ -677,7 +678,7 @@ class ScriptCommand(QObject):
 		def mySorted(a):
 			return a[1]["idx"]
 
-		funcs = sorted(funcs.items(),key=mySorted)
+		funcs = sorted(list(funcs.items()),key=mySorted)
 	
 		for k,v in funcs:
 			if k == cmd:
@@ -762,7 +763,7 @@ class ScriptCommand(QObject):
 		if v:
 			if v[2] == None :
 				return '""'
-			if type(v[2]) == types.UnicodeType:
+			if type(v[2]) == str:
 				return '"'+v[2]+'"' 
 			else:
 				return str(v[2]) 
@@ -783,17 +784,17 @@ class ScriptCommand(QObject):
 			if lists:
 				s = 0
 				try:
-					s = 0 if type(lists[0][0]) != types.NoneType else 1
-				except Exception, e:
-					s = 0 if type(lists[1][0]) != types.NoneType else 1
+					s = 0 if type(lists[0][0]) != type(None) else 1
+				except Exception as e:
+					s = 0 if type(lists[1][0]) != type(None) else 1
 				
 				try:
 					return [a[s] for a in lists], [a[s+1] for a in lists]
-				except Exception, e:
+				except Exception as e:
 					try:
 						return [lists[a][s] for a in lists], [lists[a][s+1] for a in lists]
-					except Exception, e:
-						print e
+					except Exception as e:
+						print(e)
 						traceback.print_exc(file=sys.stdout)
 		return [],[]
 
@@ -824,23 +825,23 @@ class ScriptCommand(QObject):
 		
 		imgurl=["img://"+v.replace("\\","/") for v in AssetLibraryWindow().images ]
 
-		a[u"노드아이디"] = zip(_id_node,[u"현재 화면에 출력되고 있는 오브젝트의 아이디"]*len(_id_node))
-		a[u"사운드아이디"] = zip(_id_sound,[u"현재 출력되고 있는 사운드의 아이디"]*len(_id_sound))
-		a[u"타이머아이디"] = zip(_id_timer,[u"현재 실행되고 있는 타이머의 아이디"]*len(_id_timer))
-		a[u"노드입장효과"] = zip(_id_ineff,[u"노드 입장효과.. 정리해야함. TODO "]*len(_id_ineff))
-		a[u"노드퇴장효과"] = zip(_id_outef,[u"노드 퇴장효과.. 정리해야함. TODO "]*len(_id_outef))
-		a[u"애니메이션타입"] = zip(_id_anim,[u"애니메이션 타입.. 정리해야함. TODO "]*len(_id_anim))
+		a["노드아이디"] = list(zip(_id_node,["현재 화면에 출력되고 있는 오브젝트의 아이디"]*len(_id_node)))
+		a["사운드아이디"] = list(zip(_id_sound,["현재 출력되고 있는 사운드의 아이디"]*len(_id_sound)))
+		a["타이머아이디"] = list(zip(_id_timer,["현재 실행되고 있는 타이머의 아이디"]*len(_id_timer)))
+		a["노드입장효과"] = list(zip(_id_ineff,["노드 입장효과.. 정리해야함. TODO "]*len(_id_ineff)))
+		a["노드퇴장효과"] = list(zip(_id_outef,["노드 퇴장효과.. 정리해야함. TODO "]*len(_id_outef)))
+		a["애니메이션타입"] = list(zip(_id_anim,["애니메이션 타입.. 정리해야함. TODO "]*len(_id_anim)))
 		
-		a[u"크기"] = zip(_id_size,[u"크기들.. 정리해야함. TODO"]*len(_id_size))
-		a[u"위치"] = zip(_id_pos,[u"위치들.. 정리해야함. TODO"]*len(_id_pos))
+		a["크기"] = list(zip(_id_size,["크기들.. 정리해야함. TODO"]*len(_id_size)))
+		a["위치"] = list(zip(_id_pos,["위치들.. 정리해야함. TODO"]*len(_id_pos)))
 
-		a[u"폰트파일"] = zip(_fi_fonts,[u"이 텍스트를 표기할 폰트"]*len(_fi_fonts))
+		a["폰트파일"] = list(zip(_fi_fonts,["이 텍스트를 표기할 폰트"]*len(_fi_fonts)))
 
-		a[u"이미지파일"] = zip(_fi_imgs,imgurl)
-		a[u"사운드파일"] = zip(_fi_sound,[""]*len(_fi_sound))
+		a["이미지파일"] = list(zip(_fi_imgs,imgurl))
+		a["사운드파일"] = list(zip(_fi_sound,[""]*len(_fi_sound)))
 		
 		cmds, expl = ScriptCommand.List()
-		a[u"함수목록"] = zip(cmds, expl)
+		a["함수목록"] = list(zip(cmds, expl))
 
 	@staticmethod
 	def Step(editor,cmd,argName):
@@ -868,9 +869,9 @@ class ScriptCommand(QObject):
 		cmd = ScriptCommand.suggested_cmd
 		argName = ScriptCommand.suggested_argName
 
-		if cmd == u"루아" : 
+		if cmd == "루아" : 
 			pass
-		elif cmd == u"애니메이션" and argName == u"타입" :
+		elif cmd == "애니메이션" and argName == "타입" :
 			editor.currentArg(cmd,None)
 			tc.removeSelectedText()
 			tc.insertText(text)

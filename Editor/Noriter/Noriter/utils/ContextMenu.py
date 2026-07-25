@@ -1,5 +1,6 @@
-from PySide.QtCore import Qt,QPoint,Signal
-from PySide.QtGui  import QWidget,QAction,QMenu
+from PySide6.QtCore import Qt,QPoint,Signal
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QWidget,QMenu
 
 class ContextMenu(QMenu):
 	#Signal
@@ -19,7 +20,7 @@ class ContextMenu(QMenu):
 			for item in arr[1:]:
 				if isinstance(item,list):
 					target.addMenu(ContextMenu(item,target))
-				elif isinstance(item,basestring):
+				elif isinstance(item,str):
 					target.addAction(QAction(target.tr(item), target))
 				elif isinstance(item,tuple):
 					title,data = item

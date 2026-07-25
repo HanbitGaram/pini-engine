@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 import math
 
@@ -30,15 +28,15 @@ def EaseImmediately(time):
 #########################################
 ## types
 line_Interval = [
-	u"위치X",
-	u"위치Y",
-	u"크기X",
-	u"크기Y",
-	u"회전",
-	u"색상R",
-	u"색상G",
-	u"색상B",
-	u"색상A",
+	"위치X",
+	"위치Y",
+	"크기X",
+	"크기Y",
+	"회전",
+	"색상R",
+	"색상G",
+	"색상B",
+	"색상A",
 ]
 line_Interval_Default = [
 	0,
@@ -53,27 +51,27 @@ line_Interval_Default = [
 ]
 
 line_Instant = [
-	u"매크로",
-	u"루아",
-	u"이미지",
+	"매크로",
+	"루아",
+	"이미지",
 ]
 line_type = line_Interval + line_Instant
 
 ############################################
 #### ease type!
 line_ease = [
-	u"기본",
-	u"사인인",
-	u"사인아웃",
-	u"사인인아웃",
-	u"즉시",
+	"기본",
+	"사인인",
+	"사인아웃",
+	"사인인아웃",
+	"즉시",
 ]
 
 ##############################################
 #### set type
 line_increment = [
-	u"증가",
-	u"변경",
+	"증가",
+	"변경",
 ]
 
 from ctypes import *
@@ -106,7 +104,7 @@ def FAL_GETFRAME(idx,node,frame,nodeName,_hash):
 def FAL_GETVALUE(frame,key):
 	return atl.getNumberVal(frame,key), atl.getNumberSetVal(frame,key), atl.getNumberSet(frame, key)
 def FAL_GETSTRVALUE(frame,key):
-	return atl.getStringVal(frame,key).decode("mbcs")
+	return atl.getStringVal(frame,key).decode("utf-8", "replace")
 def FAL_ISVALUE(frame,key):
 	return atl.isValue(frame,key)
 def FAL_DELETEFRAME(frame):

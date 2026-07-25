@@ -1,12 +1,12 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 
-class TabWidget(QtGui.QTabWidget):
+class TabWidget(QtWidgets.QTabWidget):
 	class __tab__(object):
 		def __init__(self,tabbar,text):
 			from Noriter.UI.Layout import Layout
 
 			self.tabbar = tabbar
-			self.widget = QtGui.QWidget(self.tabbar)
+			self.widget = QtWidgets.QWidget(self.tabbar)
 			self.Layout = Layout.getInstance()
 
 			self.tabbar.addTab(self.widget,text)
@@ -29,7 +29,7 @@ class TabWidget(QtGui.QTabWidget):
 		pass
 
 	def tab(self,title):
-		return TabWidget.__tab__(self,unicode(title))
+		return TabWidget.__tab__(self,str(title))
 
 	def focus(self,idx):
 		self.setCurrentIndex(idx)

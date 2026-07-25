@@ -1,9 +1,9 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 
 from Noriter.UI.Layout import *
 from Noriter.UI import NoriterWindow as nWin
 
-class ModalWindow(nWin.NoriterWindow, QtGui.QDialog):
+class ModalWindow(nWin.NoriterWindow, QtWidgets.QDialog):
 	def __init__(self,parent):
 		super(ModalWindow, self).__init__(parent)
 

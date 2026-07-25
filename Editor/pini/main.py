@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 from config import *
 
@@ -13,20 +11,21 @@ else:
 	# sys.stdout   = Error_Logger
 	pass
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 from Noriter.views.NoriterMainWindow import *
 from Noriter.utils.Settings import Settings
 
 import os
 import json
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
 from view.LoaderView import LoaderWindow
 
 launcher = None
 if __name__ == "__main__":
-	app = QtGui.QApplication(sys.argv)
+	app = QtWidgets.QApplication(sys.argv)
 
 	v = LoaderWindow()
 	_exit_ = app.exec_()

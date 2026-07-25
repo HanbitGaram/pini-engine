@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.utils.Settings import Settings
@@ -18,7 +17,7 @@ from controller.SceneListController import SceneListController
 import xml.etree.ElementTree as ET
 import subprocess
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import shutil
 import zipfile
 import locale
@@ -26,26 +25,27 @@ import random
 import time
 import base64
 import hashlib
-import os_encoding
 from PIL import Image
 
 from view.AssetLibraryWindow import AssetLibraryWindow
 
-from pepy.ico_plugin import *
-
-if sys.platform == "win32" : 
+# pepy 는 Windows PE 실행파일의 아이콘을 바꿔치기하는 전용 모듈이라 win32 에서만 필요하다.
+# (게다가 pepy.ico_plugin 은 현대 Pillow 에서 삭제된 PIL._binary 를 쓰고, 내부적으로 py2
+#  암시적 상대 import 를 쓴다.) mac 에서 이 모듈 때문에 Export_Windows -> Menu 임포트가
+#  통째로 깨지지 않도록 win32 가드 안으로 옮긴다.
+if sys.platform == "win32" :
+	from pepy.ico_plugin import *
 	from pepy import pe
 
 
 from config import *
 
 def PJOIN(*paths):
-	path = []
-	for v in paths:
-		v = v.replace("/","\\")
-		path.append(v.encode(locale.getpreferredencoding()))
-	ret = os.path.join(*path).replace("/","\\")
-	return ret
+	# py2 에서는 각 조각을 로케일 인코딩 bytes 로 바꿔 os 에 넘기고 경로 구분자를
+	# 윈도우식 백슬래시로 강제했다. py3 는 경로를 str 로 다루고, mac/리눅스에서는
+	# 백슬래시가 구분자가 아니므로 os.sep 으로 맞춘다 (윈도우에서는 결과가 동일).
+	parts = [str(v).replace("\\", "/") for v in paths]
+	return os.path.join(*parts).replace("/", os.sep)
 
 LUAJIT_PATH = "resource\\tools\\lua\\luac.exe"
 
@@ -77,7 +77,7 @@ class EditWindow(ModalWindow):
 		self.Layout.hline()
 		self.Layout.gap(2)
 
-		self.Layout.button(u"저장하기",self.save)
+		self.Layout.button("저장하기",self.save)
 		self.resize(400,400)
 
 	def save(self):
@@ -96,18 +96,18 @@ class ExportWindowsWindow(ModalWindow):
 		self.work_step = 0
 
 		super(ExportWindowsWindow,self).__init__(parent)
-		self.setWindowTitle(u"윈도우 익스포트")
+		self.setWindowTitle("윈도우 익스포트")
 
 	def closeEvent(self,e):
 		super(ExportWindowsWindow,self).closeEvent(e)
 
 	def btn_find_dist_path(self):
-		path = QFileDialog.getExistingDirectory(parent=self,caption=u"저장할 위치" )
+		path = QFileDialog.getExistingDirectory(parent=self,caption="저장할 위치" )
 		if path : 
 			self.savePath.setText(path)
 
 	def DEFAULT_EULA(self):
-		return u'''최종 사용자 사용권 계약을 적는 공간입니다.
+		return '''최종 사용자 사용권 계약을 적는 공간입니다.
 
 타 소프트웨어의 계약서를 비교하여 작성할 수 있습니다.
 *타 소프트웨어 EUAL 문서
@@ -119,15 +119,15 @@ class ExportWindowsWindow(ModalWindow):
 '''
 
 	def DEFAULT_README(self):
-		return u'설치 후 나오는 게임 소개 내용입니다.'
+		return '설치 후 나오는 게임 소개 내용입니다.'
 
 	@LayoutGUI
 	def GUI(self):
-		savepath = u""
-		gamename = u"테스트게임"
-		version  = u"0.1"
-		distname = u""
-		iconpath = u"resource/export_default_icon.png"
+		savepath = ""
+		gamename = "테스트게임"
+		version  = "0.1"
+		distname = ""
+		iconpath = "resource/export_default_icon.png"
 		encryptionEnable = False
 		inst = ProjectController()
 		with Settings("WINDOW_EXPORT") :
@@ -142,28 +142,28 @@ class ExportWindowsWindow(ModalWindow):
 					Settings()["iconpath"] = iconpath
 		self.Layout.clear()
 		
-		self.Layout.label(u"<b>1. 게임 정보 설정</b>")
+		self.Layout.label("<b>1. 게임 정보 설정</b>")
 		self.Layout.hline();
 		self.Layout.gap(3)
 		
 		with Layout.HBox():
 			with Layout.VBox():
 				with Layout.HBox():
-					self.Layout.label(u"저장위치").setFixedWidth(80)
+					self.Layout.label("저장위치").setFixedWidth(80)
 					self.savePath = self.Layout.input(savepath,None)
-					self.Layout.button(u"...",self.btn_find_dist_path).setFixedHeight(20);
+					self.Layout.button("...",self.btn_find_dist_path).setFixedHeight(20);
 				with Layout.HBox():
-					self.Layout.label(u"게임명").setFixedWidth(80)
+					self.Layout.label("게임명").setFixedWidth(80)
 					self.saveGameName = self.Layout.input(gamename,None)
 				with Layout.HBox():
-					self.Layout.label(u"버전정보").setFixedWidth(80)
+					self.Layout.label("버전정보").setFixedWidth(80)
 					self.saveVersion = self.Layout.input(version,None)
 				with Layout.HBox():
-					self.Layout.label(u"배포자명").setFixedWidth(80)
+					self.Layout.label("배포자명").setFixedWidth(80)
 					self.saveDistname = self.Layout.input(distname,None)
 				with Layout.HBox():
-					self.Layout.label(u"리소스암호화").setFixedWidth(80)
-					self.encryto = self.Layout.checkbox(u"사용", encryptionEnable, None)
+					self.Layout.label("리소스암호화").setFixedWidth(80)
+					self.encryto = self.Layout.checkbox("사용", encryptionEnable, None)
 
 				self.Layout.spacer()
 
@@ -172,14 +172,14 @@ class ExportWindowsWindow(ModalWindow):
 			with Layout.VBox():
 				self.appIcon = self.Layout.img(iconpath)#.setFixedSize(50,50)
 				self.appIcon.setFixedSize(60,60)
-				self.Layout.button(u"...",self.find_icon).setFixedHeight(20)
+				self.Layout.button("...",self.find_icon).setFixedHeight(20)
 
 		self.Layout.gap(2)
 		self.Layout.hline()
 		self.Layout.gap(2)
 
 		#with Layout.HBox():
-		self.Layout.button(u"익스포트",self.export)
+		self.Layout.button("익스포트",self.export)
 		#self.Layout.button(u"인스톨러",self.installer)
 
 		self.resize(350,0)
@@ -188,22 +188,22 @@ class ExportWindowsWindow(ModalWindow):
 	def GUI_FIN_EXPORT(self):
 		self.Layout.clear()
 
-		self.Layout.label(u"<b>2. 익스포팅 완료</b>")
+		self.Layout.label("<b>2. 익스포팅 완료</b>")
 		self.Layout.hline();
 		self.Layout.gap(3)
 
-		self.Layout.label(u"익스포팅 폴더")
+		self.Layout.label("익스포팅 폴더")
 
 		with Layout.HBox():
 			self.Layout.label(self.exported_path)
-			self.Layout.button(u"열기",self.open_export_dir).setFixedSize(50,20)
+			self.Layout.button("열기",self.open_export_dir).setFixedSize(50,20)
 
 		self.Layout.spacer()
 
 		self.Layout.hline()
 		with Layout.HBox():
-			self.Layout.button(u"인스톨러 생성",self.installer)
-			self.Layout.button(u"익스포트 종료",self.close)
+			self.Layout.button("인스톨러 생성",self.installer)
+			self.Layout.button("익스포트 종료",self.close)
 
 	@LayoutGUI
 	def GUI_NSIS_SETUP(self):
@@ -226,18 +226,18 @@ class ExportWindowsWindow(ModalWindow):
 
 		self.Layout.clear()
 		
-		self.Layout.label(u"<b>3. 인스톨러 정보 셋팅</b>")
+		self.Layout.label("<b>3. 인스톨러 정보 셋팅</b>")
 		self.Layout.hline();
 		self.Layout.gap(3)
 		
 		with Layout.HBox():
-			self.Layout.label(u"사용권 계약").setFixedWidth(75)
-			self.Layout.button(u"수정하기",self.open_EUAL_editor)
+			self.Layout.label("사용권 계약").setFixedWidth(75)
+			self.Layout.button("수정하기",self.open_EUAL_editor)
 
 			self.Layout.gap(25)
 
-			self.Layout.label(u"설치 후 문서").setFixedWidth(75)
-			self.Layout.button(u"수정하기",self.open_README_editor)
+			self.Layout.label("설치 후 문서").setFixedWidth(75)
+			self.Layout.button("수정하기",self.open_README_editor)
 
 		self.Layout.gap(2)
 		self.Layout.hline()
@@ -245,10 +245,10 @@ class ExportWindowsWindow(ModalWindow):
 
 		with Layout.HBox():
 			with Layout.VBox():
-				self.Layout.label(u"<b>인스톨러 아이콘")
+				self.Layout.label("<b>인스톨러 아이콘")
 				self.installIcon = self.Layout.img(install_icon)
 				self.installIcon.setFixedSize(80,80)
-				self.Layout.button(u"64x64",self.find_install_icon).setFixedSize(80,20)
+				self.Layout.button("64x64",self.find_install_icon).setFixedSize(80,20)
 				self.Layout.spacer()
 			
 			self.Layout.gap(3)
@@ -256,10 +256,10 @@ class ExportWindowsWindow(ModalWindow):
 			self.Layout.gap(3)
 
 			with Layout.VBox():
-				self.Layout.label(u"<b>언인스톨러 아이콘")
+				self.Layout.label("<b>언인스톨러 아이콘")
 				self.uninstallIcon = self.Layout.img(uninstall_icon)
 				self.uninstallIcon.setFixedSize(80,80)
-				self.Layout.button(u"64x64",self.find_uninstall_icon).setFixedSize(80,20)
+				self.Layout.button("64x64",self.find_uninstall_icon).setFixedSize(80,20)
 				self.Layout.spacer()
 
 			self.Layout.gap(3)
@@ -267,10 +267,10 @@ class ExportWindowsWindow(ModalWindow):
 			self.Layout.gap(3)
 
 			with Layout.VBox():
-				self.Layout.label(u"<b>인스톨 상단")
+				self.Layout.label("<b>인스톨 상단")
 				self.headerImg = self.Layout.img(header)
 				self.headerImg.setFixedSize(175,53)
-				self.Layout.button(u"175x53",self.find_header).setFixedHeight(20)
+				self.Layout.button("175x53",self.find_header).setFixedHeight(20)
 				self.Layout.spacer()
 
 			self.Layout.gap(3)
@@ -278,20 +278,20 @@ class ExportWindowsWindow(ModalWindow):
 			self.Layout.gap(3)
 
 			with Layout.VBox():
-				self.Layout.label(u"<b>인스톨 좌측")
+				self.Layout.label("<b>인스톨 좌측")
 				self.installSideImg = self.Layout.img(install_side)
 				self.installSideImg.setFixedSize(191/2,290/2)
-				self.Layout.button(u"191x290",self.find_install_side).setFixedSize(82,20)
+				self.Layout.button("191x290",self.find_install_side).setFixedSize(82,20)
 			
 			self.Layout.gap(3)
 			self.Layout.vline().setStyleSheet(LINE_CSS)
 			self.Layout.gap(3)
 
 			with Layout.VBox():
-				self.Layout.label(u"<b>언인스톨 좌측")
+				self.Layout.label("<b>언인스톨 좌측")
 				self.uninstallSideImg = self.Layout.img(uninstall_side)
 				self.uninstallSideImg.setFixedSize(191/2,290/2)
-				self.Layout.button(u"191x290",self.find_uninstall_side).setFixedSize(82,20)
+				self.Layout.button("191x290",self.find_uninstall_side).setFixedSize(82,20)
 
 			self.Layout.spacer()
 		
@@ -300,11 +300,11 @@ class ExportWindowsWindow(ModalWindow):
 		self.Layout.gap(3)
 
 		#with Layout.HBox():
-		self.Layout.button(u"인스톨러 생성",self.generate_installer)
+		self.Layout.button("인스톨러 생성",self.generate_installer)
 		#	self.Layout.button(u"CD 굽기",self.installer)
 
 	def find_install_icon(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"인스톨 아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="인스톨 아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -313,7 +313,7 @@ class ExportWindowsWindow(ModalWindow):
 					self.installIcon.setPixmap(path)
 
 	def find_uninstall_icon(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"언인스톨 아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="언인스톨 아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -322,7 +322,7 @@ class ExportWindowsWindow(ModalWindow):
 					self.uninstallIcon.setPixmap(path)
 
 	def find_header(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"인스톨러 상단 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="인스톨러 상단 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -331,7 +331,7 @@ class ExportWindowsWindow(ModalWindow):
 					self.headerImg.setPixmap(path)
 
 	def find_install_side(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"인스톨러 좌측 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="인스톨러 좌측 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -340,7 +340,7 @@ class ExportWindowsWindow(ModalWindow):
 					self.installSideImg.setPixmap(path)
 
 	def find_uninstall_side(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"언인스톨러 좌측 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="언인스톨러 좌측 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -349,7 +349,7 @@ class ExportWindowsWindow(ModalWindow):
 					self.uninstallSideImg.setPixmap(path)
 
 	def find_icon(self):
-		path,ext = QFileDialog.getOpenFileName(parent=self,caption=u"아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
+		path,ext = QFileDialog.getOpenFileName(parent=self,caption="아이콘으로 사용할 이미지를 선택해주세요.",filter="JPEG (*.jpg *.jpeg);;PNG (*.png);;" )
 		if path : 
 			self.appIcon.setPixmap(QPixmap(path))
 
@@ -384,7 +384,7 @@ class ExportWindowsWindow(ModalWindow):
 			with Settings(inst.path) :
 				if Settings()["EUAL"] : 
 					EUAL = Settings()["EUAL"]
-		text = EditWindow(u"최종 사용자 사용권 계약(EUAL)",EUAL,self).exec_()
+		text = EditWindow("최종 사용자 사용권 계약(EUAL)",EUAL,self).exec_()
 		
 		with Settings("WINDOW_EXPORT") :
 			with Settings(inst.path) :
@@ -397,7 +397,7 @@ class ExportWindowsWindow(ModalWindow):
 			with Settings(inst.path) :
 				if Settings()["README"] : 
 					README = Settings()["README"]
-		text = EditWindow(u"리드미 텍스트(README)",README,self).exec_()
+		text = EditWindow("리드미 텍스트(README)",README,self).exec_()
 
 		with Settings("WINDOW_EXPORT") :
 			with Settings(inst.path) :
@@ -411,8 +411,8 @@ class ExportWindowsWindow(ModalWindow):
 			proc = subprocess.Popen(["start","/w","resource\\tools\\win32\\NSIS\\installer.exe","/S","/D="+os.getcwd()+"\\nsis"], stdout=subprocess.PIPE, stdin=subprocess.PIPE,shell=True )
 			try:
 				out, err = proc.communicate()
-				print ">>>",out,err
-			except Exception, e:
+				print(">>>",out,err)
+			except Exception as e:
 				pass
 
 		if os.path.isfile("nsis/makensis.exe") : 
@@ -429,9 +429,9 @@ class ExportWindowsWindow(ModalWindow):
 			uninstall_side = "resource/tools/win32/NSIS/script/Install.png"
 			readme = self.DEFAULT_README()
 			eual = self.DEFAULT_EULA()
-			gamename = u"테스트게임"
-			version  = u"0.1"
-			distname = u""
+			gamename = "테스트게임"
+			version  = "0.1"
+			distname = ""
 		
 			inst = ProjectController()
 			with Settings("WINDOW_EXPORT") :
@@ -447,7 +447,7 @@ class ExportWindowsWindow(ModalWindow):
 					version  = Settings()["version"] if Settings()["version"] else version
 					distname = Settings()["distname"] if Settings()["distname"] else distname
 	
-			master = u'''
+			master = '''
 !include "MUI2.nsh"
 
 Name    "[gamename]" ; 게임 이름
@@ -455,7 +455,7 @@ OutFile "installer.exe" ; 설치 파일 이름
 
 !define	GAME_NAME     "[gamename]" ; 게임 이름
 !define GAME_EXEFILE  "[gamename].exe" ; 게임 실행 파일 이름
-!define GAME_TARGET_FOLDER "[distname]\[gamename]" ; 게임 폴더 이름
+!define GAME_TARGET_FOLDER "[distname]\\[gamename]" ; 게임 폴더 이름
 !define GAME_SOURCE_FOLDER "Master" ; 게임 폴더 이름
 !define GAME_DISTRIBUTOR "[distname]"; 배포자명
 !define	GAME_HELPFILE "Help.txt" ; 게임 도움말 파일 이름
@@ -466,8 +466,8 @@ OutFile "installer.exe" ; 설치 파일 이름
 !include "Main.nsh"
 '''
 
-			master = master.replace(u"[gamename]", gamename)
-			master = master.replace(u"[distname]", distname)
+			master = master.replace("[gamename]", gamename)
+			master = master.replace("[distname]", distname)
 			
 			def png2ico(src,dst,size):
 				image = Image.open(src)
@@ -517,34 +517,34 @@ OutFile "installer.exe" ; 설치 파일 이름
 			proc = subprocess.Popen(["nsis\\makensis.exe",distDir+"Master.nsi"], stdout=subprocess.PIPE, stdin=subprocess.PIPE,shell=True )
 			try:
 				out, err = proc.communicate()
-				print "makensis",out, err
-			except Exception, e:
+				print("makensis",out, err)
+			except Exception as e:
 				pass
 
 			shutil.copyfile(distDir+"installer.exe",self.exported_path+"/installer.exe")
 
-			print os.path.dirname(distDir)
+			print(os.path.dirname(distDir))
 			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(self.exported_path))
 
-			QMessageBox.information(self,"Pini",u"인스톨러가 생성되었습니다!")
+			QMessageBox.information(self,"Pini","인스톨러가 생성되었습니다!")
 			self.close()
 		else:
-			QMessageBox.warning(self,"Pini",u"NSIS 설치에 실패하였습니다.\n관리자 모드를 승인해주세요. 해당 오류가 해결이 안되면 관리자에게 문의해주세요.")
+			QMessageBox.warning(self,"Pini","NSIS 설치에 실패하였습니다.\n관리자 모드를 승인해주세요. 해당 오류가 해결이 안되면 관리자에게 문의해주세요.")
 
 	def open_export_dir(self):
 		QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(self.exported_path+"/export_window"))		
 
 	def compile_cocos_lua(self,path,dist):
-		luaf = path.replace("/","\\").encode(os_encoding.cp())
-		luacf= (dist+"c").replace("/","\\").encode(os_encoding.cp())
+		luaf = path.replace("/","\\")
+		luacf= (dist+"c").replace("/","\\")
 
 		ARGU = [LUAJIT_PATH,"-o",luacf,luaf]
 		proc = subprocess.Popen(ARGU, stdout=subprocess.PIPE, stdin=subprocess.PIPE,shell=True )
 		try:
 			out, err = proc.communicate()
-			print ">>>",out,err
-		except Exception, e:
-			print e
+			print(">>>",out,err)
+		except Exception as e:
+			print(e)
 
 	def export(self):
 		version = self.saveVersion.text()
@@ -553,15 +553,15 @@ OutFile "installer.exe" ; 설치 파일 이름
 		distname = self.saveDistname.text()
 		encryto = self.encryto.isChecked()
 		if len(savepath) == 0 :
-			QMessageBox.warning(self,"Pini",u"저장 위치를 지정해주세요!")
+			QMessageBox.warning(self,"Pini","저장 위치를 지정해주세요!")
 			return 
 
 		if len(gamename) == 0 :
-			QMessageBox.warning(self,"Pini",u"게임명을 정해주세요!")
+			QMessageBox.warning(self,"Pini","게임명을 정해주세요!")
 			return 
 
 		if len(distname) == 0 :
-			QMessageBox.warning(self,"Pini",u"배포자명을 정해주세요!")
+			QMessageBox.warning(self,"Pini","배포자명을 정해주세요!")
 			return 
 
 		ICO_path = None
@@ -594,7 +594,7 @@ OutFile "installer.exe" ; 설치 파일 이름
 		os.makedirs(BUILDPATH)
 
 		def windowExport(arg1,arg2):
-			print "====================================================="
+			print("=====================================================")
 			for root, dirs, files in os.walk(BUILDPATH, topdown=False):
 				for name in files:
 					path = os.path.join(root, name).replace("\\","/")
@@ -624,9 +624,9 @@ OutFile "installer.exe" ; 설치 파일 이름
 				SEVENZIPPATH = "resource\\tools\\win32\\7z\\7z.exe"
 				DISTPATH = srcpath+"/"
 				base_password = str(time.time())
-				print "base_password=",base_password
+				print("base_password=",base_password)
 				base_password = base64.b64encode(hashlib.md5(base_password).digest())
-				print "after md5:",base_password
+				print("after md5:",base_password)
 
 				f = open(DISTPATH+'pp.lua', 'w')
 				f.write("return function() return \"" + base_password + "\" end" )
@@ -645,7 +645,7 @@ OutFile "installer.exe" ; 설치 파일 이름
 					targetFolders.append(PJOIN(DISTPATH,'sound'))
 
 				DISTPRZPATH = PJOIN(DISTPATH,"..","res.prz")
-				print [SEVENZIPPATH,'a','-tzip','-p'+base_password,'-r','-y',DISTPRZPATH]
+				print([SEVENZIPPATH,'a','-tzip','-p'+base_password,'-r','-y',DISTPRZPATH])
 				rc = subprocess.call([SEVENZIPPATH,'a','-tzip','-p'+base_password,'-r','-y',DISTPRZPATH] + targetFolders)
 
 				if isImageExist:
@@ -699,7 +699,7 @@ OutFile "installer.exe" ; 설치 파일 이름
 			fp.open(QIODevice.WriteOnly | QIODevice.Text)
 			
 			out = QTextStream(fp)
-			out.setCodec("UTF-8")
+			out.setEncoding(QStringConverter.Utf8)
 			out.setGenerateByteOrderMark(False)
 			out << "return \""
 			out << gamename
@@ -727,7 +727,7 @@ OutFile "installer.exe" ; 설치 파일 이름
 				fr.close()
 				fs.close()
 
-			distapp = binpath+gamename+u".exe"
+			distapp = binpath+gamename+".exe"
 			if os.path.isfile(distapp) : 
 				os.remove(distapp)
 			
@@ -770,6 +770,6 @@ OutFile "installer.exe" ; 설치 파일 이름
 
 			AssetLibraryWindow().watcherOn = True
 			AssetLibraryWindow().updateWatcher()
-			print "all fin!"
+			print("all fin!")
 		inst.compileProj(False,windowExport)
 

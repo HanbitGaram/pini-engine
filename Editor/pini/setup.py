@@ -81,6 +81,6 @@ else:
 	}
 	
 setup(name="PiniEngine",
-	  description=unicode("피니엔진 실행파일입니다!","utf-8"),
+	  description="피니엔진 실행파일입니다!",
 	  version="0.0.1",
 	  **platform_options)

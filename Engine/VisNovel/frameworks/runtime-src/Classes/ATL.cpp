@@ -580,20 +580,28 @@ extern "C"{
 	}
 
 	char* getStringVal(int idx,int key){
+		// NOTE: returning string("").c_str() handed back a pointer into a temporary
+		// that was already destroyed (clang: -Wreturn-stack-address). A string
+		// literal has static storage duration, so it is safe to return.
 		ATL_Frame* frame = ATL::getInstance()->getFrame(idx);
 		if(frame == nullptr){
-			return (char*)string("").c_str();
+			return (char*)"";
 		}
 		if(frame->properties.find(key) == frame->properties.end()){
-			return (char*)string("").c_str();
+			return (char*)"";
 		}
 		return (char*)frame->properties[key]._str.c_str();
 	}
 
 	char* getMarkedFrames(char* idx,int key){
 		list<int> ret = ATL::getInstance()->getMarkedFrames(idx,key);
-		
-		string stm;
+
+		// NOTE: this used to return the c_str() of a local string, i.e. a dangling
+		// pointer once the function returned. Keep the buffer alive in a static so
+		// the caller (ctypes, restype=c_char_p) can copy it out safely. The value is
+		// only valid until the next call, which matches how ATL.py uses it.
+		static string stm;
+		stm.clear();
 		list<int>::iterator b = ret.begin();
 		list<int>::iterator e = ret.end();
 		for(;b!=e;b++){

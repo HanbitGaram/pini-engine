@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
-from PySide.QtNetwork import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtNetwork import *
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.UI.ListBox import ListBox 
@@ -17,7 +16,7 @@ from view.OutputWindow import OutputWindow
 from command.RemoteClient import RemoteClient
 
 import socket
-import thread, time
+import _thread, time
 
 class DeviceList(ListBox):
 	def __init__(self,factory,parent):
@@ -32,7 +31,7 @@ class ManualWindow(ModalWindow):
 
 	@LayoutGUI
 	def GUI(self):
-		self.Layout.label(u"아이피 입력")
+		self.Layout.label("아이피 입력")
 		self.Layout.hline();
 		self.Layout.gap(3)
 
@@ -46,7 +45,7 @@ class ManualWindow(ModalWindow):
 		self.Layout.hline()
 		self.Layout.gap(2)
 
-		self.connect = self.Layout.button(u"연결하기",self.save)
+		self.connect = self.Layout.button("연결하기",self.save)
 		self.resize(150,0)
 		self.ip4.setFocus()
 
@@ -75,7 +74,7 @@ class ManualWindow(ModalWindow):
 		
 		remote = RemoteClient(NoriterMain())
 		remote._connect(ip,45674,False,1)
-		remote.playScene = u"scene/메인.lnx";
+		remote.playScene = "scene/메인.lnx";
 
 		self.close()
 
@@ -114,7 +113,7 @@ class RemotePlayWindow(ModalWindow):
 
 	def updateConnection(self):
 		destroys = []
-		for k,v in self.devices.iteritems(): 
+		for k,v in self.devices.items(): 
 			v[1] -= 1 
 			if v[1] <= 0:
 				destroys.append(k)
@@ -129,7 +128,7 @@ class RemotePlayWindow(ModalWindow):
 	def GUI(self):
 		proCtrl = ProjectController()
 		self.deviceList = self.Layout.addWidget(DeviceList(self.factory,self))
-		self.Layout.button(self.trUtf8("수동 연결"),self.openIP)
+		self.Layout.button(self.tr("수동 연결"),self.openIP)
 
 	def readyRead(self):
 		buf,addr,port = self.udp.readDatagram(3);
@@ -147,7 +146,7 @@ class RemotePlayWindow(ModalWindow):
 		self.devices[ip][1] = 3
 			
 	def updateDevice(self):
-		self.deviceList.data = [[k,k,v[0]] for k,v in self.devices.iteritems()]
+		self.deviceList.data = [[k,k,v[0]] for k,v in self.devices.items()]
 
 	def factory(self,v):
 		self.Layout.gap(5)
@@ -177,7 +176,7 @@ class RemotePlayWindow(ModalWindow):
 
 		remote = RemoteClient(NoriterMain())
 		remote._connect(v[0],45674,False)
-		remote.playScene = u"scene/메인.lnx";
+		remote.playScene = "scene/메인.lnx";
 
 		self.close()
 
@@ -188,5 +187,5 @@ class RemotePlayWindow(ModalWindow):
 		super(RemotePlayWindow,self).exec_()
 		try:
 			pass
-		except Exception, e:
+		except Exception as e:
 			pass

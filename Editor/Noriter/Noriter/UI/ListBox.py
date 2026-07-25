@@ -1,7 +1,7 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 from Noriter.UI import Widget as nWidget
 
-class ListBox(QtGui.QWidget) : 
+class ListBox(QtWidgets.QWidget) : 
 	#signal
 	changed = QtCore.Signal(list)
 	changedIndex = QtCore.Signal(list)
@@ -12,13 +12,13 @@ class ListBox(QtGui.QWidget) :
 		self._data = data
 		self._factory = factory
 
-		self._scroll = QtGui.QScrollArea(self)
-		self._scrollWidget = QtGui.QWidget(self)
+		self._scroll = QtWidgets.QScrollArea(self)
+		self._scrollWidget = QtWidgets.QWidget(self)
 		
 		if orien:
-			self._layout = QtGui.QVBoxLayout(self._scrollWidget)
+			self._layout = QtWidgets.QVBoxLayout(self._scrollWidget)
 		else:
-			self._layout = QtGui.QHBoxLayout(self._scrollWidget)
+			self._layout = QtWidgets.QHBoxLayout(self._scrollWidget)
 		self.orientation = orien
 
 		self._scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -29,7 +29,7 @@ class ListBox(QtGui.QWidget) :
 		self._scroll.setWidget(self._scrollWidget)
 		self._scrollWidget.setLayout(self._layout)
 
-		contentlayout = QtGui.QVBoxLayout(self)
+		contentlayout = QtWidgets.QVBoxLayout(self)
 		contentlayout.addWidget(self._scroll)
 		self.setLayout(contentlayout)
 
@@ -153,7 +153,8 @@ class ListBox(QtGui.QWidget) :
 			widget.pal = widget.palette();
 
 		Pal = QtGui.QPalette()
-		Pal.setColor(QtGui.QPalette.Background, QtGui.QColor(100,100,100,125))
+		# Qt6 에서 QPalette.Background / Foreground 는 제거되었다 (Window / WindowText 로 대체).
+		Pal.setColor(QtGui.QPalette.Window, QtGui.QColor(100,100,100,125))
 		widget.setAutoFillBackground(True)
 		widget.setPalette(Pal)
 
@@ -166,7 +167,7 @@ class ListBox(QtGui.QWidget) :
 	def removeAllWidget(self):
 		self.widgets = []
 
-		indexes = range(self._layout.count())
+		indexes = list(range(self._layout.count()))
 		indexes.sort(reverse=True)
 		for index in indexes:
 			item = self._layout.takeAt(index)

@@ -1,9 +1,9 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 
 from Noriter.UI.Layout import *
 from Noriter.UI import NoriterWindow as nWin
 
-class Window (nWin.NoriterWindow, QtGui.QDockWidget):
+class Window (nWin.NoriterWindow, QtWidgets.QDockWidget):
 	def __init__(self,parent=None):
 		self.backgroundColor = QtGui.QColor(81,81,81)
 

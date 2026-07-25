@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 import os
 import json
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 class SceneController(QObject):
 	def __init__(self):
@@ -22,7 +21,7 @@ class SceneController(QObject):
 		fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 		fin = QTextStream(fp)
-		fin.setCodec("UTF-8")
+		fin.setEncoding(QStringConverter.Utf8)
 
 		self.plainText = fin.readAll()
 
@@ -31,11 +30,11 @@ class SceneController(QObject):
 
 	def Save(self,plainText):
 		fp = QFile(self.path)
-		print ("Save..." + self.path)
+		print(("Save..." + self.path))
 		fp.open(QIODevice.WriteOnly | QIODevice.Text)
 		
 		out = QTextStream(fp)
-		out.setCodec("UTF-8")
+		out.setEncoding(QStringConverter.Utf8)
 		out.setGenerateByteOrderMark(False)
 		out<<plainText
 		out = None

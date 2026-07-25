@@ -6,7 +6,7 @@ import importlib
 import py_compile as compiler
 import collections
 
-from PySide.QtCore import *
+from PySide6.QtCore import *
 
 class ModuleRefresher(object):
 	codeSuffix     = "py"
@@ -51,7 +51,7 @@ class ModuleRefresher(object):
 
 			moduleDict[withoutSuffix] = suffixList
 
-		for withoutSuffix,suffixList in moduleDict.items():
+		for withoutSuffix,suffixList in list(moduleDict.items()):
 			del moduleDict[withoutSuffix]
 			withoutSuffix = os.path.abspath(withoutSuffix)
 			moduleDict[withoutSuffix] = suffixList
@@ -187,7 +187,7 @@ class ModuleRefresher(object):
 			isWatched = moduleName in self.watchedModules
 			if moduleName in sys.modules:
 				if not isWatched:
-					reload(sys.modules[moduleName])
+					importlib.reload(sys.modules[moduleName])
 					module = sys.modules[moduleName]
 					self.callStart(module)
 			else:
@@ -200,7 +200,7 @@ class ModuleRefresher(object):
 					self.callStart(module)
 				self.watchedModules[moduleName] = module
 		except Exception as e:
-				print str(e)
+				print(str(e))
 
 		return module
 
@@ -215,10 +215,10 @@ class ModuleRefresher(object):
 		if moduleName in sys.modules:
 			module = sys.modules[moduleName]
 			try:
-				reload(module)
+				importlib.reload(module)
 				self.callStart(module)
 			except Exception as e:
-				print str(e)
+				print(str(e))
 
 		return module
 
@@ -262,12 +262,12 @@ class ModuleRefresher(object):
 		try:
 			compiler.compile(file=src,cfile=dest,dfile=error,doraise=True)
 		except compiler.PyCompileError as e:
-			print str(e)
+			print(str(e))
 		except Exception as e:
-			print str(e)
+			print(str(e))
 
 	def checkAndWatch(self,paths,postWatched = None,preWatched = None):
-		if isinstance(paths,basestring):
+		if isinstance(paths,str):
 			paths = [paths]
 
 		for path in paths:

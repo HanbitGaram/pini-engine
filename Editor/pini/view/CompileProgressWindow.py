@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtGui,QtCore
+from PySide6 import QtGui,QtCore,QtWidgets
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.utils.Settings import Settings
@@ -32,7 +30,7 @@ class CompileProgressWindow(ModalWindow):
 		self._layout.setContentsMargins(5, 5, 5, 5)
 		self._layout.setSpacing(4)
 
-		self.setWindowTitle(u"컴파일 중")
+		self.setWindowTitle("컴파일 중")
 
 		QTimer.singleShot(100,self.update)
 

@@ -1,5 +1,5 @@
 import os,sys,platform
-from PySide.QtCore import QSettings
+from PySide6.QtCore import QSettings
 from gittle import Gittle
 
 os_name = platform.system().lower() # mac is "Darwin" ,window is "Windows"
@@ -38,7 +38,7 @@ if osName != None and osBit != None:
 	branchForTarget = osName + osBit
 
 def report_transfer(size,message):
-	print "size : " + size + ", message : " + message
+	print("size : " + size + ", message : " + message)
 
 if isInstalled:
 	repo = Gittle(repo_path, origin_uri=repo_url,report_activity=report_transfer)
@@ -48,11 +48,11 @@ else:
 repo.switch_branch(branchForTarget)
 
 commit_info = repo.commit_info(start=0,end=20)
-print "repo.active_branch  : " + str(repo.active_branch)
-print "repo.branches       : " + str(repo.branches)
-print "repo.commits()      : " + str(repo.commits())
-print "repo.head           : " + repo.head
-print commit_info
+print("repo.active_branch  : " + str(repo.active_branch))
+print("repo.branches       : " + str(repo.branches))
+print("repo.commits()      : " + str(repo.commits()))
+print("repo.head           : " + repo.head)
+print(commit_info)
 
 # repo.pull(branch_name=branchForTarget)
 

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.UI.Widget import Widget 
@@ -21,7 +20,7 @@ class FindAllWindow(Window):
 		self.word = word
 
 		super(FindAllWindow,self).__init__(None)
-		self.setWindowTitle(u"모두 찾기 : "+word+u" ("+str(len(self.alls))+u"개 검색 됨)")
+		self.setWindowTitle("모두 찾기 : "+word+" ("+str(len(self.alls))+"개 검색 됨)")
 
 		self.list.doubleClicked.connect(self.selectFindElement)
 
@@ -35,7 +34,7 @@ class FindAllWindow(Window):
 		self.finder.textEdit.setFocus()
 
 	def findAllFactory(self,cur):
-		self.Layout.label(str(cur.block().blockNumber()+1)+u" 라인").setStyleSheet("color:#e6db74;background-color:none")
+		self.Layout.label(str(cur.block().blockNumber()+1)+" 라인").setStyleSheet("color:#e6db74;background-color:none")
 
 		text = cur.block().text()
 		start = cur.selectionStart() - cur.block().position()
@@ -61,17 +60,17 @@ class FinderWidget(Widget):
 	@LayoutGUI
 	def GUI(self):
 		with Layout.HBox(5) :
-			self.Layout.label(u" 검색 :")
+			self.Layout.label(" 검색 :")
 			self.find_text = self.Layout.input("",self.inputUpdate);
-			self.find_button = self.Layout.button(u"검색",self.findNext);
-			self.findAll_button = self.Layout.button(u"모두 검색",self.openFindAllWindow);
+			self.find_button = self.Layout.button("검색",self.findNext);
+			self.findAll_button = self.Layout.button("모두 검색",self.openFindAllWindow);
 
 		self.replace_gap = self.Layout.gap(1)
 		with Layout.HBox(5) :
-			self.replace_label=self.Layout.label(u" 대치 :")
+			self.replace_label=self.Layout.label(" 대치 :")
 			self.replace_text = self.Layout.input("",None);
-			self.replace_button = self.Layout.button(u"대치",self.replaceNext);
-			self.replaceAll_button = self.Layout.button(u"모두 대치",self.runReplaceAll);
+			self.replace_button = self.Layout.button("대치",self.replaceNext);
+			self.replaceAll_button = self.Layout.button("모두 대치",self.runReplaceAll);
 
 		self.replaceAll_button.setFixedHeight(20)
 		self.replace_button.setFixedHeight(20)
@@ -131,8 +130,8 @@ class FinderWidget(Widget):
 
 	def replaceAll(self,find,replace):
 		alls = self.findAll(find)
-		btn = QMessageBox.question(self, u"피니엔진", 
-										 find+u"(을/를) "+replace+u"로 대치하시겠습니까?\n총 "+str(len(alls))+"개",
+		btn = QMessageBox.question(self, "피니엔진", 
+										 find+"(을/를) "+replace+"로 대치하시겠습니까?\n총 "+str(len(alls))+"개",
 								   		 QMessageBox.Yes , QMessageBox.No )
 		
 		if btn == QMessageBox.Yes : 
@@ -190,11 +189,11 @@ class SceneScriptWindowManager(object):
 		self.windows = {}
 		self.activateQueue = []
 		self.active = None
-		print "9_2_2"
+		print("9_2_2")
 		self.sceneListCtrl = SceneListController.getInstance()
-		print "9_2_3"
+		print("9_2_3")
 		self.sceneListCtrl.SceneOpen.connect(self.openScene)
-		print "9_2_4"
+		print("9_2_4")
 
 	def openScene(self,sceneCtrl):
 		curDir = QDir(ProjectController().path)
@@ -216,7 +215,7 @@ class SceneScriptWindowManager(object):
 			self.active.saveScene()
 
 	def saveAll(self):
-		for k,v in self.windows.iteritems():
+		for k,v in self.windows.items():
 			v.editor.saveScene()
 
 	@staticmethod
@@ -248,7 +247,7 @@ class SceneScriptWindowManager(object):
 				ProjectController().workerController.terminate()
 
 	def reset(self):
-		for k in self.windows.keys():
+		for k in list(self.windows.keys()):
 			result = self.windows[k].close()
 
 			if not result:
@@ -262,16 +261,16 @@ class SceneScriptWindowManager(object):
 
 class SceneScriptWindow(Window):
 	def __init__(self,parent=None):
-		print "9_2_0"
+		print("9_2_0")
 		super(SceneScriptWindow,self).__init__(parent)
-		print "9_2_1"
-		self.setWindowTitle(u"LNX 스크립트")
-		self.fileName = u""
-		print "9_2_6"
-		self.setFeatures(QtGui.QDockWidget.DockWidgetClosable | QtGui.QDockWidget.DockWidgetFloatable | QtGui.QDockWidget.DockWidgetMovable)
-		print "9_2_7"
+		print("9_2_1")
+		self.setWindowTitle("LNX 스크립트")
+		self.fileName = ""
+		print("9_2_6")
+		self.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable | QtWidgets.QDockWidget.DockWidgetFloatable | QtWidgets.QDockWidget.DockWidgetMovable)
+		print("9_2_7")
 		self.show()
-		print "9_2_8"
+		print("9_2_8")
 
 	@LayoutGUI
 	def GUI(self):
@@ -305,7 +304,7 @@ class SceneScriptWindow(Window):
 
 	def setNeedSaveStatus(self,needSave):
 		if needSave:
-			self.setWindowTitle(self.fileName + u"*")
+			self.setWindowTitle(self.fileName + "*")
 		else:
 			self.setWindowTitle(self.fileName)
 

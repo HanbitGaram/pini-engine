@@ -1,4 +1,4 @@
-from PySide import QtCore
+from PySide6 import QtCore
 
 class Settings(object):
 	_instance = None

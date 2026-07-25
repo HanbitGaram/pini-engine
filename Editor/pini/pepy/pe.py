@@ -1,6 +1,6 @@
 import os
 import struct
-from cStringIO import StringIO
+from io import StringIO
 
 from ico_plugin import *
 
@@ -167,7 +167,7 @@ name_dictionary = {'PEHeader_Machine': {
 								0x10000000:'IMAGE_SCN_MEM_SHARED',
 								0x20000000:'IMAGE_SCN_MEM_EXECUTE',
 								0x40000000:'IMAGE_SCN_MEM_READ',
-								0x80000000L:'IMAGE_SCN_MEM_WRITE',
+								0x80000000:'IMAGE_SCN_MEM_WRITE',
 
 					},
 }
@@ -199,11 +199,11 @@ def read_bytes(file_data, offset, number_of_bytes, endian=None, string_data=None
 		data = str(file_data[offset:offset+number_of_bytes])
 		if len(data) != number_of_bytes:
 			#print 'data out of bounds:', 'offset', hex(offset), 'data', data, 'data_len', len(data), 'num_bytes', number_of_bytes, 'total', hex(len(file_data))
-			return 0, u''
+			return 0, ''
 
 		return struct.unpack(endian+struct_symbols[number_of_bytes], data)[0], data
 	else:
-		return 0, u''
+		return 0, ''
 
 def value_to_byte_string(value, number_of_bytes, endian=None):
 	endian = endian or DEFAULT_ENDIAN
@@ -300,19 +300,19 @@ class Printable(object):
 		vals = []
 		for key, val in self._dict_items():
 			try:
-				vals.append(u'{}={}'.format(key, val))
+				vals.append('{}={}'.format(key, val))
 			except UnicodeDecodeError:
-				vals.append(u'{}=<not printable>'.format(key))
-		return u', '.join(vals)
+				vals.append('{}=<not printable>'.format(key))
+		return ', '.join(vals)
 
 	def __repr__(self):
-		return unicode(self)
+		return str(self)
 
 	def __str__(self):
-		return unicode(self).encode('utf-8')
+		return str(self).encode('utf-8')
 
 	def __unicode__(self):
-		return u'{} [{}]'.format(self.__class__.__name__, self._dict_string())
+		return '{} [{}]'.format(self.__class__.__name__, self._dict_string())
 
 
 class Structure(Printable):
@@ -329,7 +329,7 @@ class Structure(Printable):
 		self._absolute_offset = absolute_offset
 		self._file_data = None
 
-		for k, v in kwargs.items():
+		for k, v in list(kwargs.items()):
 			setattr(self, k, v)
 
 	@property
@@ -339,7 +339,7 @@ class Structure(Printable):
 	@absolute_offset.setter
 	def absolute_offset(self, abs_offset):
 		self._absolute_offset = abs_offset
-		for k, v in self._fields.items():
+		for k, v in list(self._fields.items()):
 			field = getattr(self, k)
 			field.absolute_offset = self.absolute_offset + field.offset
 
@@ -386,7 +386,7 @@ class Structure(Printable):
 		bit_length = len(bin(int_value))-2
 
 		characteristics = {}
-		for i in xrange(bit_length):
+		for i in range(bit_length):
 			set_bit = test_bit(int_value, i)
 			char_name = field_name_dict.get(set_bit, '')
 			if set_bit != 0 and char_name:
@@ -406,7 +406,7 @@ class Structure(Printable):
 		"""Parses the Structure from the file data."""
 		self = cls(**cls_args)
 		self._file_data = file_data
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 		return self
 
@@ -736,7 +736,7 @@ class OptionalHeader(Structure):
 		else:
 			raise PEFormatError('Magic for Optional Header is invalid.')
 
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		return self
@@ -850,7 +850,7 @@ class ResourceDirectoryString(Structure):
 
 		self._fields['String'] = {'offset':2, 'size':str_len}
 
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		return self
@@ -859,8 +859,8 @@ class ResourceDirectoryString(Structure):
 		absolute_offset = field_info['offset'] + self.absolute_offset
 		size = field_info['size']
 		self.size += size
-		data = u''
-		for i in xrange(size):
+		data = ''
+		for i in range(size):
 			val, dat = read_bytes(file_data, absolute_offset+i*2,2)
 			data += dat
 
@@ -909,7 +909,7 @@ class ResourceDataEntry(Structure):
 		"""Parses the Structure from the file data."""
 		self = cls(**cls_args)
 		self._file_data = file_data
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		self.data = read_data(file_data, self.get_data_absolute_offset(), self.Size.value)
@@ -940,7 +940,7 @@ class ResourceHeader(Structure):
 		return resource_types[self.Type.value]
 
 	def set_name(self, value):
-		for k,v in resource_types.items():
+		for k,v in list(resource_types.items()):
 			if v == value:
 				self.Type.value = k
 				return
@@ -978,13 +978,13 @@ class IconHeader(Structure):
 		self = cls(**cls_args)
 		self._file_data = file_data
 
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		self.entries = []
 		entry_offset = 0
 		self.total_size = self.size
-		for i in xrange(self.ImageCount.value):
+		for i in range(self.ImageCount.value):
 			entry = IconEntry.parse_from_data(file_data, absolute_offset=self.absolute_offset+self.size+entry_offset, offset=entry_offset)
 			entry.number = i + 1
 			self.entries.append(entry)
@@ -1031,13 +1031,13 @@ class GroupHeader(Structure):
 		self = cls(**cls_args)
 		self._file_data = file_data
 
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		self.entries = []
 		entry_offset = 0
 		self.total_size = self.size
-		for i in xrange(self.ResourceCount.value):
+		for i in range(self.ResourceCount.value):
 			entry = GroupEntry.parse_from_data(file_data, absolute_offset=self.absolute_offset+self.size+entry_offset, offset=entry_offset)
 			entry.number = i + 1
 			self.entries.append(entry)
@@ -1079,7 +1079,7 @@ class IconEntry(Structure):
 		offset = 6 #Default icon header size
 		offset += self.size * len(group_entries)
 
-		for i in xrange(group_entry.number-1):
+		for i in range(group_entry.number-1):
 			offset += group_entries[i].DataSize.value
 
 		return offset
@@ -1090,7 +1090,7 @@ class IconEntry(Structure):
 		"""Parses the Structure from the file data."""
 		self = cls(**cls_args)
 		self._file_data = file_data
-		for field_name, field_info in self._fields.items():
+		for field_name, field_info in list(self._fields.items()):
 			self.process_field(file_data, field_name, field_info)
 
 		self.data = read_data(file_data, self.OffsetToData.value, self.DataSize.value)
@@ -1163,16 +1163,16 @@ class PEFile(Printable):
 		section_offset = self.pe_header.size+self.pe_header.absolute_offset+self.pe_header.SizeOfOptionalHeader.value
 		self.sections = {}
 
-		for section_number in xrange(number_of_sections):
+		for section_number in range(number_of_sections):
 			section_header = SectionHeader.parse_from_data(self.pe_file_data, absolute_offset=section_offset)
 			section_offset += section_size
 			self.sections[section_header.Name.data.strip('\x00')] = section_header
 
 			if section_header.PointerToLineNumbers.value != 0:
-				print '{} section contains line number COFF table, which is not implemented yet.'.format(section_header.Name)
+				print('{} section contains line number COFF table, which is not implemented yet.'.format(section_header.Name))
 
 			if section_header.PointerToRelocations.value != 0:
-				print '{} section contains relocation table, which is not implemented yet.'.format(section_header.Name)
+				print('{} section contains relocation table, which is not implemented yet.'.format(section_header.Name))
 
 			if section_header.Name.data == '.rsrc\x00\x00\x00':
 				current_table_pointer = section_header.PointerToRawData.value
@@ -1189,7 +1189,7 @@ class PEFile(Printable):
 					num_id_entries = resource_directory_table.NumberOfIDEntries.value
 					current_offset = resource_directory_table.absolute_offset + resource_directory_table.size
 
-					for i in xrange(num_name_entries):
+					for i in range(num_name_entries):
 						name_entry = ResourceDirectoryEntryName.parse_from_data(self.pe_file_data, absolute_offset=current_offset, _section_header=section_header)
 						current_offset += name_entry.size
 
@@ -1210,7 +1210,7 @@ class PEFile(Printable):
 
 						resource_directory_table.name_entries.append(name_entry)
 
-					for i in xrange(num_id_entries):
+					for i in range(num_id_entries):
 						id_entry = ResourceDirectoryEntryID.parse_from_data(self.pe_file_data, absolute_offset=current_offset, _section_header=section_header)
 						current_offset += id_entry.size
 
@@ -1247,10 +1247,10 @@ class PEFile(Printable):
 		if not os.path.exists(icon_path):
 			raise Exception('Icon {} does not exist'.format(icon_path))
 
-		print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-		for k,v in self.sections.iteritems() : 
-			print k
-		print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+		print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+		for k,v in self.sections.items() : 
+			print(k)
+		print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 		resource_section = self.sections['.rsrc']
 
@@ -1262,7 +1262,7 @@ class PEFile(Printable):
 		group_header = GroupHeader.parse_from_data(self.pe_file_data, absolute_offset=g_icon_data_entry.get_data_absolute_offset())
 		g_entry = group_header.entries[0]
 		for v in group_header.entries : 
-			print (v.Width.value, v.Height.value)
+			print((v.Width.value, v.Height.value))
 
 		icon = Image.open(icon_path)
 		i_data = resize(icon, (g_entry.Width.value, g_entry.Height.value), format='ico')

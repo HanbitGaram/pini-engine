@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 from Noriter.UI.Layout import *
 from Noriter.UI.Window import Window
@@ -27,7 +25,7 @@ class DefineSettingWindow(Window):
 			return 
 		DefineSettingWindow._isInit = True
 		super(DefineSettingWindow,self).__init__(NoriterMain())
-		self.setWindowTitle(u"치환설정")
+		self.setWindowTitle("치환설정")
 		self.resize(400,300)
 
 		self.defdatas = []
@@ -86,14 +84,14 @@ class DefineSettingWindow(Window):
 		with Layout.HBox():
 			STR = data[1];
 			try:
-				STR = unicode(STR);
-			except Exception, e:
-				STR = u"(손상된 문자열)"
+				STR = str(STR);
+			except Exception as e:
+				STR = "(손상된 문자열)"
 			ID = data[0]
 			try:
-				ID = unicode(ID);
-			except Exception, e:
-				ID = u"(손상된 문자열)"
+				ID = str(ID);
+			except Exception as e:
+				ID = "(손상된 문자열)"
 
 			self.Layout.gap(3)
 			name = self.Layout.label(ID)

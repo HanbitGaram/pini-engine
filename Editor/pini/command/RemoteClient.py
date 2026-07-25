@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtCore import *
-from PySide.QtNetwork import *
+from PySide6.QtCore import *
+from PySide6.QtNetwork import *
 
 import os
 import shutil
 
 import socket
-import thread, time
+import _thread, time
 import hashlib
 import base64
 import json
@@ -59,8 +57,8 @@ class RemoteClient(QTcpSocket):
 
 	def _connect(self,ip,port,clean,count=3):
 		if self.playScene == None:
-			self.playScene = u"scene/메인.lnx";
-		print "remoteclient._connect() => ",self.playScene
+			self.playScene = "scene/메인.lnx";
+		print("remoteclient._connect() => ",self.playScene)
 		
 		self.HOST = ip
 		self.PORT = port
@@ -77,13 +75,13 @@ class RemoteClient(QTcpSocket):
 
 	def onConnected(self):
 		self.live = True
-		OutputWindow().notice(u"테스트 실행 연결.")
+		OutputWindow().notice("테스트 실행 연결.")
 		self.run()
 
 	def TryConnect(self):
 		self.tryCount += 1
 		if self.tryCount > self._connect_try : 
-			OutputWindow().notice(u"테스터와의 연결이 실패하였습니다.")
+			OutputWindow().notice("테스터와의 연결이 실패하였습니다.")
 			RemoteClient._disconnect_()
 			return
 			
@@ -93,13 +91,13 @@ class RemoteClient(QTcpSocket):
 		else:
 			self.live = False
 			QTimer.singleShot(1500,self.TryConnect)
-			OutputWindow().notice(u"연결중...")
+			OutputWindow().notice("연결중...")
 
 	def checksum(self,fpath):
 		return base64.b64encode(hashlib.md5(open(fpath, 'rb').read()).hexdigest())
 
 	def OnRecved(self,order,size,payload):
-		print "OnRecved(self,)",order,size,payload
+		print("OnRecved(self,)",order,size,payload)
 		if order == "ulst" : 
 			self.OnUpdateFiles(json.loads(str(payload)))
 		elif order == "ufin":
@@ -110,7 +108,7 @@ class RemoteClient(QTcpSocket):
 				self.ClearRemoteDist()
 			self.SendFileList()
 
-			print self.remote_writable_path
+			print(self.remote_writable_path)
 
 	def OnUpdateFiles(self,flist):
 		self.updateFlist = flist
@@ -141,7 +139,7 @@ class RemoteClient(QTcpSocket):
 			line = self.startLine
 			if line == None:
 				line = 0
-			print "line=",line
+			print("line=",line)
 			startLine = QByteArray.number(line)
 			startLine.resize(4)
 			byte.append(startLine)
@@ -181,32 +179,32 @@ class RemoteClient(QTcpSocket):
 		self.send("flst",QByteArray(checksums))
 
 	def __del__(self):
-		print "Socket Delete"
+		print("Socket Delete")
 
 	def onDisconnect(self):
 		RemoteClient._disconnect_()
 
 	def onRead(self):
 		fin = QDataStream(self)
-		print "<<<<<<Recived"
+		print("<<<<<<Recived")
 		if self.order == None:
 			if self.bytesAvailable() >= 4 : 
 				self.order = str(fin.device().read(4))
 				self.payloadSize = -1
-				print "ordered << ",self.order
+				print("ordered << ",self.order)
 
-		print "____0"
+		print("____0")
 		if self.payloadSize == -1 and len(self.order) == 4 : 
 			if self.bytesAvailable() >= 11 : 
 				self.payloadSize = int(fin.device().read(11))
 				self.payload = ""
-				print "size << ",self.payloadSize
+				print("size << ",self.payloadSize)
 		
-		print "____1"
+		print("____1")
 		if self.order != None and self.payloadSize != -1 : 
 			availBytes = self.bytesAvailable()
 
-			print "____2",availBytes,self.payloadSize
+			print("____2",availBytes,self.payloadSize)
 
 			if availBytes > 0 and availBytes < self.payloadSize :
 				self.payload += fin.device().read(availBytes)
@@ -214,16 +212,16 @@ class RemoteClient(QTcpSocket):
 				availBytes = self.bytesAvailable()
 
 			if availBytes >= self.payloadSize : 
-				print "____3"
+				print("____3")
 				self.payload += fin.device().read(self.payloadSize)
 				self.payloadSize = 0
-				print "____4"
+				print("____4")
 
-		print "____5"
+		print("____5")
 		if self.order != None and self.payloadSize == 0 and self.payload != None : 
-			print "____6"
+			print("____6")
 			self.OnRecved(self.order,self.payloadSize,self.payload)
-			print "____7"
+			print("____7")
 			self.order = None
 			self.payloadSize = None
 			self.payload = None
@@ -237,11 +235,11 @@ class RemoteClient(QTcpSocket):
 			size=QByteArray(s_size+" "*(11-len(s_size)))
 
 			#print ">>>>>>>>>>>>>>>>>>>>>>>"
-			print "\"",header,"\"",self.write(header)
-			print "\"",size,"\"",self.write(size)
-			print "payload",self.write(payload)
+			print("\"",header,"\"",self.write(header))
+			print("\"",size,"\"",self.write(size))
+			print("payload",self.write(payload))
 
-			OutputWindow().notice(u"리모트 데이터 전송:"+order+" ["+str(payload.size())+"]")
+			OutputWindow().notice("리모트 데이터 전송:"+order+" ["+str(payload.size())+"]")
 
 	def sendFile(self,fpath,dist,fname):
 		if self.live : 
@@ -271,7 +269,7 @@ class RemoteClient(QTcpSocket):
 			byte.append(fbyte)
 
 			self.send("tran",byte)
-			OutputWindow().notice(u"파일 전송:"+fpath)
+			OutputWindow().notice("파일 전송:"+fpath)
 
 	@staticmethod
 	def _disconnect_():

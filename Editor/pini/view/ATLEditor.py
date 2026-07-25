@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 from Noriter.UI.Timeline import *
 from Noriter.UI.Layout import *
@@ -30,7 +28,7 @@ class ATLGraphicsObject(QGraphicsItem):
 	def paint(self, painter, option, widget=None):
 		painter.drawRect(self.boundingRect())
 		painter.setPen(QPen(QColor(255,255,255)))
-		painter.drawText(QRect(0,0,130,25),Qt.AlignCenter,u"GRAPHICS_OBJECT")
+		painter.drawText(QRect(0,0,130,25),Qt.AlignCenter,"GRAPHICS_OBJECT")
 
 	def mouseMoveEvent(self, e):
 		super(ATLGraphicsObject,self).mouseMoveEvent(e)
@@ -100,7 +98,7 @@ class ATLEditor(Window):
 		self.timelineMap = []
 		ATLEditor._isInit = True
 		super(ATLEditor,self).__init__(NoriterMain())
-		self.setWindowTitle(u"애니메이션 편집기")
+		self.setWindowTitle("애니메이션 편집기")
 		self.resize(400,300)
 
 	@LayoutGUI
@@ -119,7 +117,7 @@ class ATLEditor(Window):
 
 
 	def onChanged(self):
-		print "ATLEditor.onChanged() called"
+		print("ATLEditor.onChanged() called")
 
 	def parseObj(self,obj):
 		animations = []
@@ -135,7 +133,7 @@ class ATLEditor(Window):
 						frames.append((int(frame["frame"]),frame["stmts"]))
 
 					animations.append({
-						"name":frameKeys["name"] + u"." + str(int(node["idx"])),
+						"name":frameKeys["name"] + "." + str(int(node["idx"])),
 						"frames":frames
 					})
 
@@ -156,7 +154,7 @@ class ATLEditor(Window):
 					fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 					fin = QTextStream(fp)
-					fin.setCodec("UTF-8")
+					fin.setEncoding(QStringConverter.Utf8)
 
 					obj = json.loads(fin.readAll())
 

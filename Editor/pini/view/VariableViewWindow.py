@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 from Noriter.UI.Layout import *
 from Noriter.UI.Window import Window
@@ -27,7 +25,7 @@ class VariableViewWindow(Window):
 		self.searchText = None
 		VariableViewWindow._isInit = True
 		super(VariableViewWindow,self).__init__(NoriterMain())
-		self.setWindowTitle(u"변수 뷰어")
+		self.setWindowTitle("변수 뷰어")
 		self.resize(400,300)
 
 	@LayoutGUI
@@ -37,7 +35,7 @@ class VariableViewWindow(Window):
 			with Layout.VBox():
 				with Layout.HBox():
 					self.Layout.label("검색")
-					self.searchText = self.Layout.input(u"",self.Search)
+					self.searchText = self.Layout.input("",self.Search)
 				self.previewVarList = self.Layout.listbox(self.varListFactory,[])
 			
 	def Search(self):
@@ -48,17 +46,17 @@ class VariableViewWindow(Window):
 		with Layout.HBox():
 			STR = data[1];
 			try:
-				STR = unicode(STR);
-			except Exception, e:
+				STR = str(STR);
+			except Exception as e:
 				STR = "LUA TABLE"
 			ID = data[0]
 			try:
-				ID = unicode(ID);
-			except Exception, e:
+				ID = str(ID);
+			except Exception as e:
 				ID = "LUA TABLE"
 
-			if ID.startswith(u"___") : 
-				ID = ID.replace(u"___",u"[기본값]")
+			if ID.startswith("___") : 
+				ID = ID.replace("___","[기본값]")
 			name=self.Layout.label(ID)
 			val = self.Layout.input(STR,None)
 			

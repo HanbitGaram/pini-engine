@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 from Noriter.UI.Layout import *
 from Noriter.UI.Window import Window
@@ -30,7 +28,7 @@ class BookmarkListWindow(Window):
 		self.bookmarkMap = {}
 		BookmarkListWindow._isInit = True
 		super(BookmarkListWindow,self).__init__(NoriterMain())
-		self.setWindowTitle(u"북마크 목록 뷰어")
+		self.setWindowTitle("북마크 목록 뷰어")
 		self.resize(400,300)
 
 	@LayoutGUI
@@ -40,12 +38,12 @@ class BookmarkListWindow(Window):
 		self.tab = self.Layout.tab()
 		self.tab.currentChanged.connect(self.tabSelChanged)
 
-		if len(self.bookmarkMap.items()) > 0:
-			self.tabSelected = self.bookmarkMap.items()[0]
+		if len(list(self.bookmarkMap.items())) > 0:
+			self.tabSelected = list(self.bookmarkMap.items())[0]
 		else:
 			self.tabSelected = None
 
-		for fileName, bookmarks in self.bookmarkMap.iteritems():
+		for fileName, bookmarks in self.bookmarkMap.items():
 			with self.tab.tab(fileName) : 
 				with Layout.VBox():
 					self.bookmarkListBox = self.Layout.listbox(self.bookmarkListFactory, bookmarks)
@@ -55,7 +53,7 @@ class BookmarkListWindow(Window):
 			
 	def tabSelChanged(self,idx):
 		if self.tabSelected != None:
-			self.tabSelected = self.bookmarkMap.items()[idx]
+			self.tabSelected = list(self.bookmarkMap.items())[idx]
 		pass
 
 	def bookmarkSelChanged(self,idx):
@@ -76,7 +74,7 @@ class BookmarkListWindow(Window):
 	def parseObj(self,obj):
 		bookmarks = []
 
-		bookmarks.append({"name":u"#진입","line":0})
+		bookmarks.append({"name":"#진입","line":0})
 
 		for v in obj : 
 			if v["t"] == 6 : # 매크로
@@ -109,7 +107,7 @@ class BookmarkListWindow(Window):
 					fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 					fin = QTextStream(fp)
-					fin.setCodec("UTF-8")
+					fin.setEncoding(QStringConverter.Utf8)
 
 					obj = json.loads(fin.readAll())
 

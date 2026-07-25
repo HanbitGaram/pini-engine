@@ -1,6 +1,7 @@
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 
 from Noriter.UI.Layout import *
 from Noriter.UI import NoriterWindow as nWin

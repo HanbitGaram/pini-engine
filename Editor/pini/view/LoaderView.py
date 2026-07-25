@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 from Noriter.views.NoriterMainWindow import *
 from Noriter.utils.Settings import Settings
 from controller.ProjectController import ProjectController
 
 import os
 import json
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import locale
 
 class UpdatorUpdateThread(QThread):
@@ -20,8 +19,8 @@ class UpdatorUpdateThread(QThread):
 		if os.path.isfile("../_pygit2.pyd") : 
 			try:
 				distURL = "http://nooslab.com/piniengine/updator_latest/"
-				req = urllib2.Request(url=distURL+'version.inf')
-				f = urllib2.urlopen(req)
+				req = urllib.request.Request(url=distURL+'version.inf')
+				f = urllib.request.urlopen(req)
 
 				serverVer = int(f.read())
 				localVer = -1
@@ -43,24 +42,24 @@ class UpdatorUpdateThread(QThread):
 					filename = wget.download(url)
 
 					try:
-						os.remove(u"../피니엔진.exe")
-					except Exception, e:
+						os.remove("../피니엔진.exe")
+					except Exception as e:
 						sys.stderr.write( str(e) )
 						sys.stderr.write( "\n" )
 
 					try:
-						os.rename(filename,u"../피니엔진.exe")
-					except Exception, e:
+						os.rename(filename,"../피니엔진.exe")
+					except Exception as e:
 						sys.stderr.write( str(e) )
 						sys.stderr.write( "\n" )
 
-			except Exception, e:
+			except Exception as e:
 				sys.stderr.write( str(e) )
 
 class LoaderWindow(QLabel):
 	def __init__(self,parent=None):
 		super(LoaderWindow,self).__init__(parent)
-		rec = QApplication.desktop().screenGeometry();
+		rec = QApplication.primaryScreen().geometry();  # Qt6: QApplication.desktop() 제거됨
 		height = rec.height();
 		width = rec.width();
 
@@ -104,7 +103,10 @@ class LoaderWindow(QLabel):
 		css.open( QFile.ReadOnly )
 
 		styleSheet = css.readAll()
-		QApplication.instance().setStyleSheet(unicode(styleSheet))
+		# PySide(Qt4) 에서는 str(QByteArray) 가 내용을 돌려줬지만 PySide6 에서는 repr
+		# (예: b'QToolTip\n{...') 이 나온다. 그대로 넘기면 Qt 가 스타일시트를 파싱하지
+		# 못해 ("Could not parse application stylesheet") 테마가 통째로 적용되지 않는다.
+		QApplication.instance().setStyleSheet(styleSheet.data().decode("utf-8"))
 
 		css.close()
 
@@ -122,7 +124,7 @@ class LoaderWindow(QLabel):
 
 	def step3_1(self):
 		print ("step3_1 ready")
-		from PySide import QtGui,QtCore
+		from PySide6 import QtGui,QtCore,QtWidgets
 		from Noriter.UI.ModalWindow import ModalWindow 
 		from Noriter.UI.Window import Window 
 		from Noriter.UI.Widget import Widget 
@@ -172,14 +174,14 @@ class LoaderWindow(QLabel):
 		m.SetMain(SceneDocument(m))
 
 	def step9(self):
-		print "step9_0"
+		print("step9_0")
 		from view.SceneScriptWindow import SceneScriptWindowManager
 		# print "step9_1"
 		m = NoriterMain()
 		m.setWindowIcon(QIcon('resource/logoIcon64.png')) 
 		# print "step9_2"
 		# self.bb = SceneScriptWindow(m)
-		print "step9_3"
+		print("step9_3")
 		SceneScriptWindowManager()
 	
 	def step10(self):
@@ -195,8 +197,13 @@ class LoaderWindow(QLabel):
 
 	def step12(self):
 		from view.Launcher import LauncherView
+		# Qt6 에서는 '부모가 있는 창' 이 quitOnLastWindowClosed 계산에 포함되지 않는다.
+		# 런처를 NoriterMain 의 자식으로 만들면, 스플래시가 닫히고 메인 창이 숨겨지는 순간
+		# Qt 가 "마지막 창이 닫혔다" 고 보고 앱을 그대로 종료해 버린다 (Qt4 에서는 아니었다).
+		# 부모 없는 독립 창으로 만들고, 파이썬 참조만 붙들어 GC 를 막는다.
 		m = NoriterMain()
-		launcher = LauncherView(m)
+		launcher = LauncherView(None)
+		m.launcher = launcher
 		self.close()
 		
 		m.hide()
@@ -206,7 +213,7 @@ class LoaderWindow(QLabel):
 			fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 			fin = QTextStream(fp)
-			fin.setCodec("UTF-8")
+			fin.setEncoding(QStringConverter.Utf8)
 			FILEDATA = fin.readAll()
 			fin = None
 			fp.close()
@@ -214,12 +221,11 @@ class LoaderWindow(QLabel):
 			return FILEDATA
 
 		def PJOIN(*paths):
-			path = []
-			for v in paths:
-				v = v.replace("/","\\")
-				path.append(v.encode(locale.getpreferredencoding()))
-			ret = os.path.join(*path).replace("/","\\")
-			return ret
+			# py2 에서는 각 조각을 로케일 인코딩 bytes 로 바꿔 os 에 넘기고 경로 구분자를
+			# 윈도우식 백슬래시로 강제했다. py3 는 경로를 str 로 다루고, mac/리눅스에서는
+			# 백슬래시가 구분자가 아니므로 os.sep 으로 맞춘다 (윈도우에서는 결과가 동일).
+			parts = [str(v).replace("\\", "/") for v in paths]
+			return os.path.join(*parts).replace("/", os.sep)
 
 		tmp_path_master = PJOIN(".","tempSave","PROJ")
 		if os.path.exists(tmp_path_master):
@@ -229,7 +235,7 @@ class LoaderWindow(QLabel):
 			DAT = json.loads(fileOpen(tmp_path_master))
 
 			if not os.path.exists(DAT["PROJ"]):
-				print "NO BACKUP PROJECT FOUND"
+				print("NO BACKUP PROJECT FOUND")
 				return
 
 			launcher.close()
@@ -237,16 +243,15 @@ class LoaderWindow(QLabel):
 			ProjectController().path = DAT["PROJ"]
 			PROJPATH = DAT["PROJ"]
 
-			QMessageBox.warning(self,u"피니엔진",u"저장되지 않은 파일이 감지되었습니다. 임시파일을 불러옵니다.")
+			QMessageBox.warning(self,"피니엔진","저장되지 않은 파일이 감지되었습니다. 임시파일을 불러옵니다.")
 			NoriterMain().show()
 
 			for root, dirs, files in os.walk(PJOIN(".","tempSave"), topdown=False):
 				for backupFileName in files:
 					if backupFileName != "PROJ":
-						backupFileName = backupFileName.decode('mbcs')
-						BACK = json.loads(fileOpen(PJOIN(".","tempSave",backupFileName).decode('mbcs')))
-						targetFileName = backupFileName.replace(u"__!_",u"/").replace(u".tmp",u".lnx")
-						relativePath = u"scene/"+targetFileName
+						BACK = json.loads(fileOpen(PJOIN(".","tempSave",backupFileName)))
+						targetFileName = backupFileName.replace("__!_","/").replace(".tmp",".lnx")
+						relativePath = "scene/"+targetFileName
 						SceneListController.getInstance().Open(PROJPATH+"/scene/"+targetFileName)
 
 						SceneScriptWindowManager.getInstance().windows[relativePath].editor.setPlainText(BACK["PLAIN"])

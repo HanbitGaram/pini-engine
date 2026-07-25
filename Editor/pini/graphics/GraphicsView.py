@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 import math, random
 
-from PySide.QtCore import *
-from PySide.QtGui import * 
-from PySide.QtWebKit import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 from controller.ProjectController import *
 from Noriter.views.NoriterMainWindow import *
@@ -26,7 +24,8 @@ class CameraView(QGraphicsItem):
 		return QRect(0,0,size.width(),size.height())
 
 	def paint(self, painter, option, widget=None):
-		mat = self.view.matrix()
+		# Qt6 에서 QGraphicsView.matrix()/QMatrix 는 제거되었다 (transform()/QTransform).
+		mat = self.view.transform()
 
 		origin  = self.view.mapToScene(QPoint(0,0))
 		originX = origin.x()-1
@@ -128,7 +127,7 @@ class DesignerScene(QGraphicsScene):
 				o.setSelected(False)
 
 	def updatePosItems(self):
-		for o in self.items():
+		for o in list(self.items()):
 			if o.__class__ == UIObject :
 				o.updatePosItem()
 
@@ -152,23 +151,23 @@ class DesignerView(QGraphicsView):
 		self.scene.view = self
 
 		#########################################
-		self.topLayer = QtGui.QGraphicsRectItem(0,0,0,0)
+		self.topLayer = QtWidgets.QGraphicsRectItem(0,0,0,0)
 		self.topLayer.setZValue(5000000)
 		self.scene.addItem(self.topLayer,True)
 
 		##########
-		self.screenInfo = QtGui.QGraphicsRectItem(0,0,130,32)
+		self.screenInfo = QtWidgets.QGraphicsRectItem(0,0,130,32)
 		self.screenInfo.setBrush(QtGui.QBrush(QtGui.QColor(0,0,0,122)))
 		self.screenInfo.setPen(QtGui.QPen(QtGui.QColor(0,0,0,0)))
 		self.screenInfo.setZValue(1000)
 		self.screenInfo.setPos(10,10)
 		self.screenInfo.setParentItem(self.topLayer)
 
-		self.logWindow = QtGui.QGraphicsRectItem(0,0,0,0)
+		self.logWindow = QtWidgets.QGraphicsRectItem(0,0,0,0)
 		self.logWindow.setParentItem(self.topLayer)
 
 		def widgetProxy(widget,x=0,y=0):
-			proxy = QtGui.QGraphicsProxyWidget()
+			proxy = QtWidgets.QGraphicsProxyWidget()
 			proxy.setWidget(widget)
 			proxy.setParentItem(self.screenInfo)
 			proxy.setZValue(1000)
@@ -176,35 +175,20 @@ class DesignerView(QGraphicsView):
 			widget.setStyleSheet("*{background-color:rgba(0,0,0,0);}")
 			return proxy
 
-		s = widgetProxy(QtGui.QCheckBox(unicode("화면맞춤","utf-8")),10,10)
+		s = widgetProxy(QtWidgets.QCheckBox("화면맞춤"),10,10)
 		self.FIVCheck = s.widget()
 		self.FIVCheck.toggled.connect(self.FIVtoggled)
 		self.FIVCheck.setChecked(True)
 
-		s = widgetProxy(QtGui.QPushButton(unicode("중앙","utf-8")),85,6)
+		s = widgetProxy(QtWidgets.QPushButton("중앙"),85,6)
 		s.widget().clicked.connect(self.screenMoveCenter)
 
-		self.web = QGraphicsWebView(self.screenInfo)
-		self.web.setHtml("""
-		<script>
-			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-			(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-			m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-			})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
-			ga('create', 'UA-59101417-4', 'auto');
-			ga('send', 'pageview');
-		</script>
-		""")
-		self.web.setContentsMargins(0,0,0,0)
-
-		def loadFinished(ok):
-			self.web.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
-		self.web.loadFinished.connect(loadFinished)
-
-		def linkClicked(url):
-			QDesktopServices.openUrl(url);
-		self.web.linkClicked.connect(linkClicked)
+		# [Qt6 포팅] 여기 있던 QGraphicsWebView 는 화면에 아무것도 보여주지 않고 오직
+		# Google Analytics(UA-59101417-4) 비콘을 쏘기 위한 숨은 웹뷰였다. 제거한 이유:
+		#  1) QtWebKit 은 Qt5.6 에서 제거되었고 Qt6 에는 QGraphicsWebView 자체가 없다.
+		#  2) 대체재인 QTextBrowser 는 자바스크립트를 실행하지 못한다.
+		#  3) Universal Analytics 는 2023년에 수집을 종료해 이 비콘은 어차피 무효다.
+		# 편집기 사용 통계가 다시 필요하면 웹뷰가 아니라 HTTP 요청으로 새로 붙이는 편이 맞다.
 
 		#########################################
 		self.screenMoveCenter()
@@ -291,18 +275,17 @@ class DesignerView(QGraphicsView):
 
 			self.scene.fitInView(not self.FIVCheck.isChecked())
 
-			mat = self.matrix()
-			self.topLayer.scale(1 / mat.m11(), 1/ mat.m22())
+			mat = self.transform()
+			# Qt6 에서 QGraphicsItem.scale(sx,sy) 는 제거되었다. Qt4 는 기존 변환에 곱했으므로 combine=True.
+			self.topLayer.setTransform(QTransform.fromScale(1 / mat.m11(), 1 / mat.m22()), True)
 
 			p = self.mapToScene(QPoint(0,0))
 			self.topLayer.setPos(p.x(),p.y())
 
 			self.logWindow.setPos(0,self.height())
-			self.web.setPreferredSize(400,400)
-			self.web.setPos(self.width()-420,self.height()-420)
 
-		except Exception, e:
-			print "throw ininin",e
+		except Exception as e:
+			print("throw ininin",e)
 		
 	def FIVtoggled(self,p):
 		if self.FIVCheck.isChecked() == False :
@@ -342,7 +325,7 @@ class DesignerView(QGraphicsView):
 
 	def mouseMoveEvent (self,event):
 		super(DesignerView,self).mousePressEvent(event)
-		mat = self.matrix()
+		mat = self.transform()
 		pt = (event.pos() - self.mapFromScene(0,0))
 		NoriterMain().statusBar().showMessage("X:["+str(int(pt.x() / mat.m11()))+"] Y:["+str(int(pt.y() / mat.m22()))+"]")
 

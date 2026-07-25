@@ -1,4 +1,4 @@
-from PySide import QtGui
+from PySide6 import QtGui,QtWidgets
 
 from ..UI.Layout import *
 from ..UI import Window as nWin
@@ -29,7 +29,7 @@ class PluginListWindow(nWin.Window):
 		moduleList = []
 		with Settings("Noriter"):
 			with Settings("Plugins") as db:
-				for path in db.keys():
+				for path in list(db.keys()):
 					moduleList.append( db[path] )
 					
 		for p in moduleList:
@@ -43,17 +43,17 @@ class PluginListWindow(nWin.Window):
 		self.Layout.button("remove",self.removeClicked)
 
 	def addClicked(self):
-		path = QtGui.QFileDialog.getExistingDirectory()
+		path = QtWidgets.QFileDialog.getExistingDirectory()
 		if path : 
 			self.addModule(path)
 			with Settings("Noriter"):
 				with Settings("Plugins") as db:
-					db[str(len(db.keys()))] = path
+					db[str(len(list(db.keys())))] = path
 
 	def removeOnDB(self,path):
 		with Settings("Noriter"):
 			with Settings("Plugins") as db:
-				for p in db.keys():
+				for p in list(db.keys()):
 					if db[p] == path : 
 						del db[ p ]
 						return 
@@ -64,7 +64,7 @@ class PluginListWindow(nWin.Window):
 			self.removeOnDB(selected)
 		
 		if len(self.currentSelected) > 0:
-			self.plugins.data = self.modules.keys()
+			self.plugins.data = list(self.modules.keys())
 			self.currentSelected = []
 
 	def addModule(self,path):
@@ -72,7 +72,7 @@ class PluginListWindow(nWin.Window):
 		mr.addReference(path)
 		mr.setPath(path)
 		self.modules[path] = mr
-		self.plugins.data  = self.modules.keys()
+		self.plugins.data  = list(self.modules.keys())
 
 	def onCurrentSelected(self,widgets):
 		self.currentSelected = []

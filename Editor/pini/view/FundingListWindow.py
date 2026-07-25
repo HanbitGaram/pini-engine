@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtGui,QtCore
+from PySide6 import QtGui,QtCore,QtWidgets
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.utils.Settings import Settings
@@ -26,7 +24,7 @@ class FundingListWindow(ModalWindow):
 
 	@LayoutGUI
 	def GUI(self):
-		self.Layout.label(self.trUtf8("<b>피니엔진 오픈소스 후원자 </b>"))
+		self.Layout.label(self.tr("<b>피니엔진 오픈소스 후원자 </b>"))
 		self.Layout.listbox(self.listFactory,[
 			"xxxx님",
 			"xxxx님",
@@ -57,5 +55,5 @@ class FundingListWindow(ModalWindow):
 				proCtrl.screenHeight = h
 				proCtrl.orientation = self.orientation.isChecked()
 				#proCtrl.fullscreen = self.fullscreen.isChecked()
-		except Exception, e:
+		except Exception as e:
 			pass

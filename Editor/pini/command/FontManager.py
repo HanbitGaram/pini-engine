@@ -1,10 +1,11 @@
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 import shutil
 import os
-import Image
+from PIL import Image
 
 class FontManager(object) : 
 	_instance = None
@@ -36,10 +37,15 @@ class FontManager(object) :
 		if idx in self.fonts : 
 			return
 
-		_id = QFontDatabase.addApplicationFont(path)
-		family = QFontDatabase.applicationFontFamilies(_id)[0]
+		# Qt6 의 addApplicationFont 는 상대 경로를 열지 못하고 -1 을 돌려준다.
+		# (Qt4 에서는 cwd 기준 상대 경로가 통했다.) 절대 경로로 바꿔서 넘긴다.
+		_id = QFontDatabase.addApplicationFont(os.path.abspath(path))
+		families = QFontDatabase.applicationFontFamilies(_id)
+		if not families :
+			print("폰트를 불러오지 못했습니다:",path)
+			return None
+		family = families[0]
 
-		idx = idx.decode("utf-8")
 		self.fonts[idx] = family
 
 		return family
@@ -48,6 +54,6 @@ class FontManager(object) :
 		if idx in self.fonts : 
 			return self.fonts[idx]
 		else:
-			for k,v in self.fonts.iteritems():
+			for k,v in self.fonts.items():
 				return v
 			return ""

@@ -1,12 +1,12 @@
-from PySide import QtCore,QtGui
+from PySide6 import QtCore,QtGui,QtWidgets
 
-class Splitter(QtGui.QSplitter):
+class Splitter(QtWidgets.QSplitter):
 	class __split__(object):
 		def __init__(self,split):
 			from Noriter.UI.Layout import Layout
 
 			self.split = split
-			self.widget = QtGui.QWidget(self.split)
+			self.widget = QtWidgets.QWidget(self.split)
 			self.Layout = Layout.getInstance()
 
 			self.split.addWidget(self.widget)

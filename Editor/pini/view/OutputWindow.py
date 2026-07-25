@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide import QtGui,QtCore
+from PySide6 import QtGui,QtCore,QtWidgets
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
 from Noriter.utils.Settings import Settings
@@ -14,7 +12,7 @@ from controller.SceneListController import SceneListController
 
 import os
  
-class Console(QtGui.QTextEdit):
+class Console(QtWidgets.QTextEdit):
 	def sizeHint(self):
 		return QtCore.QSize(125,0)
 
@@ -25,7 +23,7 @@ class OutputWindow(Window):
 	def sizeHint(self):
 		return QtCore.QSize(600,500)
 
-	noticed = Signal(unicode,QtGui.QColor)
+	noticed = Signal(str,QtGui.QColor)
 
 	_instance = None
 	_isInit   = False
@@ -41,7 +39,7 @@ class OutputWindow(Window):
 		OutputWindow._isInit = True
 		
 		super(OutputWindow,self).__init__(parent)
-		self.setWindowTitle(unicode("출력","utf-8"))
+		self.setWindowTitle("출력")
 
 	def log(self,text):
 		__ = self.console.toPlainText()

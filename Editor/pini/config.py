@@ -7,6 +7,6 @@ except ImportError:
 	try:
 		from conf import config_live as config
 	except:
-		print "con not find config py"
+		print("con not find config py")
 		pass
 

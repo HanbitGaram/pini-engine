@@ -27,7 +27,7 @@ __version__ = "0.1"
 from PIL import Image, ImageFile, BmpImagePlugin, PngImagePlugin, _binary
 import bmpimageplugin
 from bmpimageplugin import *
-from cStringIO import StringIO
+from io import StringIO
 from math import log, ceil
 
 i8 = _binary.i8
@@ -63,7 +63,7 @@ class IcoFile:
         self.nb_items = i16(s[4:])
 
         # Get headers for each item
-        for i in xrange(self.nb_items):
+        for i in range(self.nb_items):
             s = buf.read(16)
 
             icon_header = {
@@ -160,7 +160,7 @@ class IcoFile:
             # figure out where AND mask image starts
             mode = a[0]
             bpp = 8
-            for k in BmpImagePlugin.BIT2MODE.keys():
+            for k in list(BmpImagePlugin.BIT2MODE.keys()):
                 if mode == BmpImagePlugin.BIT2MODE[k][1]:
                     bpp = k
                     break
@@ -336,13 +336,13 @@ def _save(image, fp, filename, check=0):
         #write matte data. Taken from imagemagick
             scanline_pad = (((im.size[0]+31) & ~31)-im.size[0]) >> 3
             row_len = im.size[0]*4
-            for y in reversed(xrange(im.size[1])):
+            for y in reversed(range(im.size[1])):
                 d = data[40:]
                 #BGRA
                 row_pixels = d[row_len*y:row_len*y+row_len]
                 bit=0
                 byte=0
-                for x in xrange(im.size[0]):
+                for x in range(im.size[0]):
                     p=row_pixels[x]
 
                     byte<<=1
@@ -353,7 +353,7 @@ def _save(image, fp, filename, check=0):
                         byte=0
                 if not bit == 0:
                     matte_data+=o8(byte<<(8-bit))
-                for i in xrange(scanline_pad):
+                for i in range(scanline_pad):
                     matte_data+=o8(0)
 
         fp.write(o8(im.size[0]) +            # width
@@ -378,13 +378,13 @@ def _save(image, fp, filename, check=0):
         #write matte data. Taken from imagemagick
             scanline_pad = (((im.size[0]+31) & ~31)-im.size[0]) >> 3
             row_len = im.size[0]*4
-            for y in reversed(xrange(im.size[1])):
+            for y in reversed(range(im.size[1])):
                 d = data[40:]
                 #BGRA
                 row_pixels = d[row_len*y:row_len*y+row_len]
                 bit=0
                 byte=0
-                for x in xrange(im.size[0]):
+                for x in range(im.size[0]):
                     p=row_pixels[x]
 
                     byte<<=1
@@ -395,7 +395,7 @@ def _save(image, fp, filename, check=0):
                         byte=0
                 if not bit == 0:
                     fp.write(o8(byte<<(8-bit)))
-                for i in xrange(scanline_pad):
+                for i in range(scanline_pad):
                     fp.write(o8(0))
 
 

@@ -1,11 +1,11 @@
 import re
 
 ERRORS = {
-    'unexp_end_string': u'Unexpected end of string while parsing Lua string.',
-    'unexp_end_table': u'Unexpected end of table while parsing Lua string.',
-    'mfnumber_minus': u'Malformed number (no digits after initial minus).',
-    'mfnumber_dec_point': u'Malformed number (no digits after decimal point).',
-    'mfnumber_sci': u'Malformed number (bad scientific format).',
+    'unexp_end_string': 'Unexpected end of string while parsing Lua string.',
+    'unexp_end_table': 'Unexpected end of table while parsing Lua string.',
+    'mfnumber_minus': 'Malformed number (no digits after initial minus).',
+    'mfnumber_dec_point': 'Malformed number (no digits after decimal point).',
+    'mfnumber_sci': 'Malformed number (bad scientific format).',
 }
 
 
@@ -21,8 +21,8 @@ class SLPP:
         self.at = 0
         self.len = 0
         self.depth = 0
-        self.space = re.compile('\s', re.M)
-        self.alnum = re.compile('\w', re.M)
+        self.space = re.compile(r'\s', re.M)
+        self.alnum = re.compile(r'\w', re.M)
         self.newline = '\n'
         self.tab = '\t'
 
@@ -52,18 +52,16 @@ class SLPP:
         tp = type(obj)
         if tp is str:
             s += '"%s"' % obj.replace(r'"', r'\"')
-        elif tp is unicode:
+        elif tp is str:
             s += '"%s"' % obj.replace(r'"', r'\"')
-        elif tp in [int, float, long, complex]:
+        elif tp in [int, float, int, complex]:
             s += str(obj)
         elif tp is bool:
             s += str(obj).lower()
         elif tp in [list, tuple, dict]:
             self.depth += 1
-            if len(obj) == 0 or ( tp is not dict and len(filter(
-                    lambda x:  type(x) in (int,  float,  long) \
-                    or (type(x) is str and len(x) < 10),  obj
-                )) == len(obj) ):
+            if len(obj) == 0 or ( tp is not dict and len([x for x in obj if type(x) in (int,  float,  int) \
+                    or (type(x) is str and len(x) < 10)]) == len(obj) ):
                 newline = tab = ''
             dp = tab * self.depth
             s += "%s{%s" % (tab * (self.depth - 2), newline)
@@ -71,7 +69,7 @@ class SLPP:
                 s += (',%s' % newline).join(
                     [self.__encode(v) if type(k) is int \
                         else dp + '["%s"] = %s' % (k, self.__encode(v)) \
-                        for k, v in obj.iteritems()
+                        for k, v in obj.items()
                     ])
             else:
                 s += (',%s' % newline).join(
@@ -125,7 +123,7 @@ class SLPP:
                     if self.ch != end:
                         s += '\\'
                 s += self.ch
-        print ERRORS['unexp_end_string']
+        print(ERRORS['unexp_end_string'])
 
     def object(self):
         o = {}
@@ -179,7 +177,7 @@ class SLPP:
                         o[idx] = k
                         idx += 1
                         k = ''
-        print ERRORS['unexp_end_table'] #Bad exit here
+        print(ERRORS['unexp_end_table']) #Bad exit here
 
     def word(self):
         s = ''
@@ -225,7 +223,7 @@ class SLPP:
                     n += next_digit(ERRORS['mfnumber_sci'])
                     n += self.digit()
         except ParseError as e:
-            print e
+            print(e)
             return 0
         try:
             return int(n, 0)

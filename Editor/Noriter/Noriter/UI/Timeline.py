@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 from Noriter.UI import Widget as nWidget
 from command.FontManager import FontManager
 
@@ -339,7 +340,7 @@ class TimelineKeyFrameArea(QWidget):
 							currentFrame = currentFrame + 1
 
 						if self.timeline._data[currentNode]["frames"][currentFrame][0] != f:
-							print "Invalid select keyframe information"
+							print("Invalid select keyframe information")
 							continue
 
 						self.timeline._data[currentNode]["frames"].pop(currentFrame)

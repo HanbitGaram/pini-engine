@@ -1,31 +1,19 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import * 
-from PySide.QtCore import *
-from PySide.QtWebKit import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 
-class ExplainHoverWebView(QWebView) :
+from view.ExplainWebView import ExplainBrowserBase
+
+
+class ExplainHoverWebView(ExplainBrowserBase):
 	# 마우스를 글자에 두었을때 뜨는 툴팁창
-	def __init__(self,parent=None):
-		super(ExplainHoverWebView,self).__init__(parent)
-		self.loadFinished.connect(self.onLoadFinished)
-		self.linkClicked.connect(self.onLinkClicked)
+	# (QtWebKit -> QTextBrowser 대체. 사유는 ExplainBrowserBase 주석 참조)
+	def __init__(self, parent=None):
+		super(ExplainHoverWebView, self).__init__(parent)
 
-		self.settings().setUserStyleSheetUrl(QUrl.fromLocalFile("resource/explain.css"));
-
-	def onLoadFinished(self,ok):
-		self.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
-
-	def onLinkClicked(self,url):
-		QDesktopServices.openUrl(url);
-
-	def leaveEvent(self,e):
-		self.resize(0,0)
-		return super(ExplainHoverWebView,self).leaveEvent(e)
-
-	def hideEvent(self,e):
-		self.clearFocus()
-		return super(ExplainHoverWebView,self).hideEvent(e)
+	def leaveEvent(self, e):
+		self.resize(0, 0)
+		return super(ExplainHoverWebView, self).leaveEvent(e)

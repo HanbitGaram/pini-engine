@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
@@ -109,7 +108,7 @@ class GraphicsObject(QGraphicsItem):
 		labels.move(0,0)
 
 		background.setStyleSheet("*{background-color:rgba(120,120,120,150)}")
-		if self.name == u"메인.lnx" : 
+		if self.name == "메인.lnx" : 
 			labels.setStyleSheet("*{background-color:rgba(150,90,90,150)}")
 		else:
 			labels.setStyleSheet("*{background-color:rgba(90,90,90,150)}")
@@ -359,7 +358,7 @@ class SceneMapWindow(Window):
 		SceneMapWindow._isInit = True
 		
 		super(SceneMapWindow,self).__init__(parent)
-		self.setWindowTitle(u"씬맵")
+		self.setWindowTitle("씬맵")
 
 	def parseObj(self,obj):
 		connects = []
@@ -367,29 +366,29 @@ class SceneMapWindow(Window):
 		scriptCallRun = True
 		imageCallValue = "__VOID__"
 
-		connects.append({"type":"bookmark","name":u"#진입"})
+		connects.append({"type":"bookmark","name":"#진입"})
 
 		for v in obj : 
-			if v["t"] == 1 and v["L"] == u"스크립트.실행" : #인자
+			if v["t"] == 1 and v["L"] == "스크립트.실행" : #인자
 				if v["R"]["t"] == 2 :
-					scriptCallRun = v["R"]["v"] == u"예"
-			elif v["t"]==1 and v["L"] == u"스크립트.파일명" : #인자
+					scriptCallRun = v["R"]["v"] == "예"
+			elif v["t"]==1 and v["L"] == "스크립트.파일명" : #인자
 				if v["R"]["t"] == 2 : 
 					scriptCallValue = v["R"]["v"]
-			elif v["t"]==1 and v["L"] == u"이미지.북마크이동" : #인자
+			elif v["t"]==1 and v["L"] == "이미지.북마크이동" : #인자
 				if v["R"]["t"] == 2 :
 					imageCallValue = v["R"]["v"]
 			elif v["t"] == 5 : # 매크로 호출
-				if v["name"] == u"스크립트":
+				if v["name"] == "스크립트":
 					if scriptCallRun:
 						connects.append({"type":"script","file":scriptCallValue})
 					else:
 						scriptCallRun = True
-				elif v["name"] == u"대화":
+				elif v["name"] == "대화":
 					for ext in v["extend"]:
-						if ext["t"]==0 and ext["v"]["name"] == u"연결":
+						if ext["t"]==0 and ext["v"]["name"] == "연결":
 							connects.append({"type":"goto","name":ext["v"]["args"][0][1:-1]})
-				elif v["name"] == u"이미지":
+				elif v["name"] == "이미지":
 					if imageCallValue != "__VOID__":
 						connects.append({"type":"goto","name":imageCallValue})
 						imageCallValue = "__VOID__"
@@ -418,7 +417,7 @@ class SceneMapWindow(Window):
 					fp.open(QIODevice.ReadOnly | QIODevice.Text)
 
 					fin = QTextStream(fp)
-					fin.setCodec("UTF-8")
+					fin.setEncoding(QStringConverter.Utf8)
 
 					obj = json.loads(fin.readAll())
 
@@ -428,7 +427,7 @@ class SceneMapWindow(Window):
 					self.objMap[idx+".lnx"] = {"obj":obj,"parse":self.parseObj(obj)}
 
 		####build!
-		for k,v in self.objMap.iteritems():
+		for k,v in self.objMap.items():
 			self.view.addObj( k.replace(".obj","") , v )
 
 		self.view.arrangement()

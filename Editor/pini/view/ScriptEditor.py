@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import * 
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 
 from Noriter.UI.ModalWindow import ModalWindow 
 from Noriter.UI.Window import Window 
@@ -111,7 +110,7 @@ class ScriptEditor(QPlainTextEdit):
 		super(ScriptEditor,self).__init__(parent)
 		self.sceneScriptWindow = sceneScriptWindow
 
-		self.setWindowTitle(u"스크립트 에디터")
+		self.setWindowTitle("스크립트 에디터")
 		self.compiledCommand=[]
 		self.compiledCommand.append(self.compiledText(''))
 
@@ -196,13 +195,13 @@ class ScriptEditor(QPlainTextEdit):
 		fntfm.setForeground(QColor(247,248,232))
 		self.setCurrentCharFormat(fntfm)
 
-		self.setTabStopWidth(4*self.fontMetrics().width(' '));
+		self.setTabStopDistance(4*self.fontMetrics().horizontalAdvance(' '));
 		self.fontSizeAnim = 0
 
 		m = NoriterMain()
 		try:
 			m.closeSignal.disconnect(self.mainWindowClose)
-		except Exception, e:
+		except Exception as e:
 			pass
 		m.closeSignal.connect(self.mainWindowClose)
 
@@ -432,7 +431,7 @@ class ScriptEditor(QPlainTextEdit):
 				c = self.compiledCommand[i] # 컴파일 중일 경우, 실패할 수도 있다
 				if c and c["goto"] == bookmark:
 					a.append(i)
-			except Exception, e:
+			except Exception as e:
 				pass
 		return a
 
@@ -451,7 +450,7 @@ class ScriptEditor(QPlainTextEdit):
 				c = self.compiledCommand[i]
 				if c and c["bookmark"] == name : 
 					return i
-		except Exception, e:
+		except Exception as e:
 			return None
 
 	def updateBlockLinkStroker(self):
@@ -488,7 +487,7 @@ class ScriptEditor(QPlainTextEdit):
 				self.linkStroker.setDashPattern(self.linkStrokerDashes)
 				self.update()
 
-		except Exception, e:
+		except Exception as e:
 			pass
 		
 	def blockLinkPaint(self,painter,booked,goto):
@@ -575,7 +574,7 @@ class ScriptEditor(QPlainTextEdit):
 
 					tc.clearSelection()
 
-			block = block.next()
+			block = next(block)
 			top = bottom
 			bottom = top+int(self.blockBoundingRect(block).height())
 
@@ -618,7 +617,7 @@ class ScriptEditor(QPlainTextEdit):
 			fnt = QFont("arial",30)
 			painter.setFont(fnt)
 			size = self.font().pointSize()
-			trect = painter.fontMetrics().width(str(size))
+			trect = painter.fontMetrics().horizontalAdvance(str(size))
 			painter.drawText(viewRect.width()/2-trect/2,viewRect.height()/2+15,str(size))
 
 			self.fontSizeAnim -= 8 
@@ -658,15 +657,15 @@ class ScriptEditor(QPlainTextEdit):
 
 		markup,markupPos = self.currentMarkup()
 
-		if markup == u"연결":
+		if markup == "연결":
 			bmList = self.bookmarkList()
 
 			if bmList != None:
 				self.completionShow(QStringListModel(bmList),self.markupSuggestComplete)
 				return True
-		elif markup == u"폰트":
+		elif markup == "폰트":
 			fontList = []
-			for k,v in FontManager().fonts.iteritems():
+			for k,v in FontManager().fonts.items():
 				if (k == "NanumGothicCoding"):
 					continue
 				fontList.append(k)
@@ -898,17 +897,17 @@ class ScriptEditor(QPlainTextEdit):
 
 				tc.removeSelectedText()
 
-		if text == u"@매크로": 
-			tab = u"\t"*(indent+1)
-			tc.insertText(u"매크로 매크로명:\n"+tab+u"pass")
-			tc.movePosition(QTextCursor.Left,QTextCursor.MoveAnchor,len(u"매크로 매크로명:\n"+tab+u"pass"))
+		if text == "@매크로": 
+			tab = "\t"*(indent+1)
+			tc.insertText("매크로 매크로명:\n"+tab+"pass")
+			tc.movePosition(QTextCursor.Left,QTextCursor.MoveAnchor,len("매크로 매크로명:\n"+tab+"pass"))
 			RemoveTypeChar(tc)
-			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len(u"매크로 "))
-			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len(u"매크로명"))
+			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len("매크로 "))
+			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len("매크로명"))
 			self.setTextCursor(tc)
 
-		elif text == u"@조건" : 
-			cc = u'''\
+		elif text == "@조건" : 
+			cc = '''\
 조건 2>1 :
 (tab)	# 조건이 맞을 경우
 (tab)	pass
@@ -919,16 +918,16 @@ class ScriptEditor(QPlainTextEdit):
 (tab)	# 모든 조건이 맞지 않을 경우
 (tab)	pass
 '''
-			cc = cc.replace( u"(tab)", "\t"*indent )
+			cc = cc.replace( "(tab)", "\t"*indent )
 			
 			tc.insertText(cc)
 			tc.movePosition(QTextCursor.Left,QTextCursor.MoveAnchor,len(cc))
 			RemoveTypeChar(tc)
-			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len(u"조건 "))
-			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len(u"2>1"))
+			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len("조건 "))
+			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len("2>1"))
 			self.setTextCursor(tc)
-		elif text == u"@애니메이션" : 
-			cc = u'''\
+		elif text == "@애니메이션" : 
+			cc = '''\
 애니메이션 애니메이션이름 :
 (tab)	@노드 1:
 (tab)		@프레임 0:
@@ -938,13 +937,13 @@ class ScriptEditor(QPlainTextEdit):
 (tab)			&위치X 100
 (tab)			&위치Y 100
 '''
-			cc = cc.replace( u"(tab)", "\t"*indent )
+			cc = cc.replace( "(tab)", "\t"*indent )
 			
 			tc.insertText(cc)
 			tc.movePosition(QTextCursor.Left,QTextCursor.MoveAnchor,len(cc))
 			RemoveTypeChar(tc)
-			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len(u"애니메이션 "))
-			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len(u"애니메이션이름"))
+			tc.movePosition(QTextCursor.Right,QTextCursor.MoveAnchor,len("애니메이션 "))
+			tc.movePosition(QTextCursor.Right,QTextCursor.KeepAnchor,len("애니메이션이름"))
 			self.setTextCursor(tc)
 
 	def wheelEvent(self,event):
@@ -1298,7 +1297,7 @@ class ScriptEditor(QPlainTextEdit):
 					elif tc.selectedText() == "@":
 						tc.movePosition(QTextCursor.EndOfWord, QTextCursor.KeepAnchor)
 
-						if tc.selectedText() == u"@애니메이션":
+						if tc.selectedText() == "@애니메이션":
 							isAnimationBlock = True
 							break
 					else:
@@ -1461,7 +1460,7 @@ class ScriptEditor(QPlainTextEdit):
 		if (key == 44 and isShift) or key == Qt.Key_Less: # FOR WINDOW;; key , Qt.Key_Less
 			# '>' 키가 눌렸을 때의 행동입니다.
 			text = self.textCursor().block().text()
-			if re.match(u"\t*[;,]",text):
+			if re.match("\t*[;,]",text):
 				self.insertText("<>")
 				self.cursorMove(-1)
 				self.completionShow(self.markups,self.markupCompletion)
@@ -1531,14 +1530,14 @@ class ScriptEditor(QPlainTextEdit):
 					else:
 						try:
 							rs = self.functionSuggestCompletionShow()
-						except Exception, __:
+						except Exception as __:
 							pass
 
 		if (not rs) and (key == Qt.Key_Space) : 
 			#if e.modifiers() == Qt.META or e.modifiers() == Qt.CTRL : 
 			try:
 				self.functionArguCompletionShow()
-			except Exception, __:
+			except Exception as __:
 				pass
 				
 		if (key == Qt.Key_2 and isShift) or key == Qt.Key_At :
@@ -1568,7 +1567,7 @@ class ScriptEditor(QPlainTextEdit):
 
 			if isEnable:
 				# 줄의 처음에서만 자동완성이 뜹니다.
-				self.completionShow( QStringListModel([u"@매크로",u"@조건",u"@애니메이션"]), self.BlockComplete )
+				self.completionShow( QStringListModel(["@매크로","@조건","@애니메이션"]), self.BlockComplete )
 
 		if isCtrl and key == Qt.Key_Slash:
 			# Ctrl+/ 로 선택한 줄 전체 주석 처리 또는 주석 해제
@@ -1623,7 +1622,7 @@ class ScriptEditor(QPlainTextEdit):
 					painter.setPen(QColor(143,144,138));
 				painter.drawText(0, top, self.lineNumber.width()-1, self.fontMetrics().height(), Qt.AlignRight | Qt.AlignVCenter, number);
 
-			block = block.next()
+			block = next(block)
 			top = bottom
 			bottom = top+int(self.blockBoundingRect(block).height())
 			blockNumber += 1
@@ -1634,7 +1633,7 @@ class ScriptEditor(QPlainTextEdit):
 		while _max >= 10:
 			_max /= 10
 			digits += 1
-		return 8 + self.fontMetrics().width(self.trUtf8('9')) * digits
+		return 8 + self.fontMetrics().horizontalAdvance(self.tr('9')) * digits
 
 	def resizeEvent(self,e):
 		super(ScriptEditor,self).resizeEvent(e)
@@ -1871,7 +1870,7 @@ class ScriptEditor(QPlainTextEdit):
 			cursor = self.document().find(s,cursor,opt)
 		else:
 			cursor = self.document().find(s,cursor)
-		if cursor.position() is -1 or cursor.blockNumber() != curLine :
+		if cursor.position() == -1 or cursor.blockNumber() != curLine :
 			return None
 		return cursor
 
@@ -1882,7 +1881,7 @@ class ScriptEditor(QPlainTextEdit):
 		cursor2 = None
 		cursor = self.textCursor()
 		while True:
-			cursor2 = self.findLine(QRegExp(r'\".*=.*\"'),opt,cursor)
+			cursor2 = self.findLine(QRegularExpression(r'\".*=.*\"'),opt,cursor)
 			print "find expr",cursor2
 			if cursor2 == None : 
 				break
@@ -1997,7 +1996,7 @@ class ScriptEditor(QPlainTextEdit):
 			cursor.insertText("\n")
 			cursor.insertText("\t"*indent)
 
-			if cmd == u"독백" or cmd == u"대화":
+			if cmd == "독백" or cmd == "대화":
 				cursor.insertText(";")
 
 			self.setTextCursor(cursor)
@@ -2057,7 +2056,7 @@ class ScriptEditor(QPlainTextEdit):
 					self.compilingThread.enqueueCompile(True,None,bn)
 					# 재시도는 다음 타이머 작동시에 처리합니다.
 
-			block = block.next()
+			block = next(block)
 			i = i + 1
 		self.setExtraSelections(extraSelections)
 
@@ -2082,7 +2081,7 @@ class ScriptEditor(QPlainTextEdit):
 
 		try:
 			c = ScriptCommand.CompileLine(text)
-		except Exception, e:
+		except Exception as e:
 			pass
 		bookmark = None
 		goto = None
@@ -2096,9 +2095,9 @@ class ScriptEditor(QPlainTextEdit):
 					goto = v["goto"]["v"]
 				elif v["t"] == LNXOptimizer.cmd("call"):
 
-					if v["name"] == u"이미지" or v["name"] == u"터치영역":
+					if v["name"] == "이미지" or v["name"] == "터치영역":
 						for argu in v["args"]:
-							if argu["l"]["v"] == u"북마크이동":
+							if argu["l"]["v"] == "북마크이동":
 								goto = argu["r"]["v"]
 				else:
 					#대사줄 중에 <연결> 마크업을 찾습니다
@@ -2106,7 +2105,7 @@ class ScriptEditor(QPlainTextEdit):
 					loopBreak = False
 					for statement in reversed(c[1]):
 						if statement["t"] == LNXOptimizer.cmd("markup"):
-							if statement["name"] == u"연결":
+							if statement["name"] == "연결":
 								goto = statement["args"][0]
 								break
 
@@ -2117,7 +2116,7 @@ class ScriptEditor(QPlainTextEdit):
 									break
 							if loopBreak:
 								break
-		except Exception, e:
+		except Exception as e:
 			traceback.print_exc(file=sys.stdout)
 
 		return {"text":text,
@@ -2159,7 +2158,7 @@ class ScriptEditor(QPlainTextEdit):
 					return i
 			return -1
 
-		if re.match(u"\t*@조건",text) : 
+		if re.match("\t*@조건",text) : 
 			curIndent = self.getIndent(text)
 			while True :
 				i = i + 1
@@ -2171,8 +2170,8 @@ class ScriptEditor(QPlainTextEdit):
 				_text = btext[indent:]
 
 				if indent > curIndent : 
-					if _text.startswith(u"@다른조건") or \
-					   _text.startswith(u"@그외"): 
+					if _text.startswith("@다른조건") or \
+					   _text.startswith("@그외"): 
 						text = text + "\n" + btext + "\n" + ("\t"*(indent+1))+"pass"
 					else:
 						text = text + "\n" + btext
@@ -2183,7 +2182,7 @@ class ScriptEditor(QPlainTextEdit):
 			blockIdx = self.blockIdx
 			self.blockIdx += 1
 
-		elif re.match(u"\t*@매크로|\t*@애니메이션",text) : 
+		elif re.match("\t*@매크로|\t*@애니메이션",text) : 
 			curIndent = self.getIndent(text)
 			while True :
 				i = i + 1
@@ -2203,7 +2202,7 @@ class ScriptEditor(QPlainTextEdit):
 			blockIdx = self.blockIdx
 			self.blockIdx += 1
 
-		elif re.match(u"\t*@다른조건|\t*@그외",text): 
+		elif re.match("\t*@다른조건|\t*@그외",text): 
 			curIndent = self.getIndent(text)
 			text += "\n"+("\t"*(curIndent+1))+"pass"
 			while True :
@@ -2214,27 +2213,27 @@ class ScriptEditor(QPlainTextEdit):
 				indent = self.getIndent(btext)
 				_text  = btext[indent:]
 				if _text : 
-					if _text.startswith(u"@다른조건") :
+					if _text.startswith("@다른조건") :
 						text = btext + "\n"+("\t"*(indent+1))+"pass\n" + text
 					else:
 						text = btext+"\n"+text
 					if curIndent == indent : 
-						if _text.startswith(u"@조건") : 
+						if _text.startswith("@조건") : 
 							if indent != len(btext):
 								break;
 
 			blockIdx = self.blockIdx
 			self.blockIdx += 1
 
-		elif re.match(u"\t*@노드|\t*@프레임",text) : 
+		elif re.match("\t*@노드|\t*@프레임",text) : 
 			text = ""
-			findUpCompile(i,u"\t*@애니메이션")
+			findUpCompile(i,"\t*@애니메이션")
 
-		elif re.match(u"\t+&",text):
+		elif re.match("\t+&",text):
 			curIndent = self.getIndent(text)
 			text = text[0:curIndent]
 
-			findUpCompile(i,u"\t*@애니메이션")
+			findUpCompile(i,"\t*@애니메이션")
 			
 		elif blockFind and blockFind.start() == 0 :
 			## 현재 라인이 들여쓰기 중인 경우, 블럭넘버를 알맞게 매긴다
@@ -2245,7 +2244,7 @@ class ScriptEditor(QPlainTextEdit):
 				if i < 0:
 					break
 
-				indenterLine = findUpCompile(i,u"\t*@매크로|\t*@조건|\t*@다른조건|\t*@그외")
+				indenterLine = findUpCompile(i,"\t*@매크로|\t*@조건|\t*@다른조건|\t*@그외")
 				if currentIndent == len(text) : 
 					text=""
 					i -= 1
@@ -2317,11 +2316,11 @@ class ScriptEditor(QPlainTextEdit):
 		for v in protocol.attachNode : 
 			self.sceneCtrl.view.scene.addItem(v)
 		for v in protocol.errorLog : 
-			OutputWindow().notice(u"이미지 불러오기 실패 : "+v)
+			OutputWindow().notice("이미지 불러오기 실패 : "+v)
 		try:
-			for k,v in protocol.Logs.items() :
+			for k,v in list(protocol.Logs.items()) :
 				OutputWindow().notice(v)
-		except Exception, e:
+		except Exception as e:
 			pass
 		
 		VariableViewWindow().previewInfoUpdate(protocol.lua)

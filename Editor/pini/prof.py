@@ -6,4 +6,4 @@ class Prof(object):
 		self.start = time.time()
 
 	def __del__(self):
-		print "prof > ",self.idx , time.time()-self.start
+		print("prof > ",self.idx , time.time()-self.start)

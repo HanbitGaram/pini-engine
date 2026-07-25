@@ -29,7 +29,7 @@ __version__ = "0.7"
 
 from PIL import Image, ImageFile, ImagePalette, _binary
 from PIL.BmpImagePlugin import * #This is a hack to override the default bmp plugin for PIL
-from cStringIO import StringIO
+from io import StringIO
 import math
 
 i8 = _binary.i8
@@ -103,8 +103,7 @@ class BmpImageFile(ImageFile.ImageFile):
                 self.size = self.size[0], 2**32 - self.size[1]
                 direction = 0
 
-            self.info["dpi"] = tuple(map(lambda x: math.ceil(x / 39.3701),
-                                         pxperm))
+            self.info["dpi"] = tuple([math.ceil(x / 39.3701) for x in pxperm])
 
         else:
             raise IOError("Unsupported BMP header type (%d)" % len(s))
@@ -132,7 +131,7 @@ class BmpImageFile(ImageFile.ImageFile):
             elif bits == 16 and mask == (0x007c00, 0x0003e0, 0x00001f):
                 rawmode = "BGR;15"
             else:
-                print bits, map(hex, mask)
+                print(bits, list(map(hex, mask)))
                 raise IOError("Unsupported BMP bitfields layout")
         elif compression != 0:
             raise IOError("Unsupported BMP compression (%d)" % compression)
@@ -204,9 +203,9 @@ class DibImageFile(BmpImageFile):
     def to_bitmapimage(self, header):
         self.fp.seek(header['offset'])
         d = bytearray(self.fp.read(header['size']))
-        print self.info
+        print(self.info)
         dpi = (96,96)
-        ppm = tuple(map(lambda x: int(x * 39.3701), dpi))
+        ppm = tuple([int(x * 39.3701) for x in dpi])
 
         d[24:28] = o32(ppm[0])
         d[28:32] = o32(ppm[1])
@@ -251,7 +250,7 @@ def _save(im, fp, filename, check=0):
     dpi = info.get("dpi", (96, 96))
 
     # 1 meter == 39.3701 inches
-    ppm = tuple(map(lambda x: int(x * 39.3701), dpi))
+    ppm = tuple([int(x * 39.3701) for x in dpi])
 
     stride = ((im.size[0]*bits+7)//8+3) & (~3)
     header = 108 if im.mode == 'RGBA' else 40  # or 64 for OS/2 version 2

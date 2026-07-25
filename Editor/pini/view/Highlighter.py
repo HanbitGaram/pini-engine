@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
-from PySide.QtGui import * 
-from PySide.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
 import re
 
 class Highlighter(QSyntaxHighlighter):
@@ -31,13 +30,13 @@ class Highlighter(QSyntaxHighlighter):
 		numFormat = QTextCharFormat()
 		numFormat.setForeground(QColor(167,114,241))
 		self.rules.append(([0],r'(?<!\t)(?<=\=|\s)\d+',numFormat))
-		self.rules.append(([0],ur'(?<![a-zA-z_가-힣ㄱ-ㅎㅏ-ㅣ])\-?[0-9]+\.[0-9]+',numFormat))
-		self.rules.append(([1],ur'((?<![a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ.])(참|거짓)(?![a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ.]))|(^\t*[;,].*)',numFormat))
+		self.rules.append(([0],r'(?<![a-zA-z_가-힣ㄱ-ㅎㅏ-ㅣ])\-?[0-9]+\.[0-9]+',numFormat))
+		self.rules.append(([1],r'((?<![a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ.])(참|거짓)(?![a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ.]))|(^\t*[;,].*)',numFormat))
 
 		funFormat = QTextCharFormat()
 		funFormat.setForeground(QColor(245,9,97))
 		funFormat.setFontWeight(QFont.Bold);
-		self.rules.append(([0],ur"^\t*\@[a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ][a-zA-Z_0-9가-힣ㄱ-ㅎㅏ-ㅣ.]*",funFormat))
+		self.rules.append(([0],r"^\t*\@[a-zA-Z_가-힣ㄱ-ㅎㅏ-ㅣ][a-zA-Z_0-9가-힣ㄱ-ㅎㅏ-ㅣ.]*",funFormat))
 		self.rules.append(([0],r"=",funFormat))
 
 		quoFormat = QTextCharFormat()
@@ -56,7 +55,7 @@ class Highlighter(QSyntaxHighlighter):
 		semiFormat.setForeground(QColor(255,128,0))
 		self.rules.append(([0],r"^\t*[;,]",semiFormat))
 
-		'''
+		r'''
 		xlxsFormat = QTextCharFormat()
 		xlxsFormat.setForeground(QColor(170,119,119))
 		self.rules.append((u(r'\?\'.*?\.xlsx\'.*?\?'),xlxsFormat))
