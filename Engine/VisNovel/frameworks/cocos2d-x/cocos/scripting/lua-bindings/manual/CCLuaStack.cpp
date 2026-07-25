@@ -135,7 +135,8 @@ bool LuaStack::init(void)
     toluafix_open(_state);
 
     // Register our version of the global "print" function
-    const luaL_reg global_functions [] = {
+    // LuaJIT 2.1 은 Lua 5.1 의 deprecated 별칭 luaL_reg 를 더 이상 제공하지 않는다 (luaL_Reg 로)
+    const luaL_Reg global_functions [] = {
         {"print", lua_print},
         {"release_print",lua_release_print},
         {nullptr, nullptr}

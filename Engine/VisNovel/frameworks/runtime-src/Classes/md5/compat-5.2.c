@@ -1,11 +1,22 @@
 #include "compat-5.2.h"
 #ifdef __cplusplus
 extern "C" {
-#endif    
+#endif
 
 #include "lua.h"
 #include "lauxlib.h"
-#if !defined LUA_VERSION_NUM || LUA_VERSION_NUM==501
+
+/* LuaJIT 2.1 은 Lua 5.2 에서 온 luaL_setfuncs 를 자체적으로 제공한다. 그대로 두면
+   링크 시 duplicate symbol '_luaL_setfuncs' 가 난다.
+   (LuaJIT 2.0 / 순정 Lua 5.1 에는 없으므로 그때는 아래 구현을 쓴다.) */
+#if defined(__has_include)
+#  if __has_include("luajit.h")
+#    include "luajit.h"
+#  endif
+#endif
+
+#if (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501) \
+    && !(defined LUAJIT_VERSION_NUM && LUAJIT_VERSION_NUM >= 20100)
 /*
 ** Adapted from Lua 5.2.0
 */
@@ -21,9 +32,8 @@ void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   }
   lua_pop(L, nup);  /* remove upvalues */
 }
+#endif
 
 #ifdef __cplusplus
 }
-#endif    
-
 #endif

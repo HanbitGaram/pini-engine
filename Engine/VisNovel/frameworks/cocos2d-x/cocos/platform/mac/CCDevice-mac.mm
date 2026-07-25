@@ -308,19 +308,43 @@ static bool _initWithString(const char * text, Device::TextAlign align, const ch
                                      realDimensions.width, realDimensions.height);
         
         
-        [[NSGraphicsContext currentContext] setShouldAntialias:NO];
-        
-        NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(POTWide, POTHigh)];
-        [image lockFocus];
-        // patch for mac retina display and lableTTF
-        [[NSAffineTransform transform] set];
-        [stringWithAttributes drawInRect:textRect];
-        NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithFocusedViewRect:NSMakeRect (0.0f, 0.0f, POTWide, POTHigh)];
-        [image unlockFocus];
-        
-        auto data = (unsigned char*) [bitmap bitmapData];  //Use the same buffer to improve the performance.
-        
+        /* 원래 구현은 [NSImage lockFocus] + [NSBitmapImageRep initWithFocusedViewRect:] 로
+           얻은 비트맵에서 POTWide*POTHigh*4 바이트를 그대로 memcpy 했다. 즉 그 비트맵이
+           "32bpp RGBA8888, bytesPerRow == width*4" 라고 가정한 것이다.
+           그런데 최신 macOS(26 기준, 측정값) 에서 focus 비트맵은 채널당 16비트짜리
+           딥컬러로 돌아온다: bitsPerPixel=64, bytesPerRow = width*8.
+           그래서 stride 와 샘플 크기가 각각 2배씩 어긋난 데이터를 복사하게 되고,
+           글자가 자홍/녹색 색 노이즈로 깨져 보인다.
+           → 픽셀 크기·행 간격·샘플 크기·채널 순서를 직접 지정한 비트맵에 그려서
+             그 가정 자체를 없앤다.
+           (기존의 [[NSGraphicsContext currentContext] setShouldAntialias:NO] 는 lockFocus
+            이전의 컨텍스트에 걸려 실제 그리기에는 적용되지 않던 코드라 함께 제거했다.) */
+        NSBitmapImageRep *bitmap =
+            [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+                                                    pixelsWide:POTWide
+                                                    pixelsHigh:POTHigh
+                                                 bitsPerSample:8
+                                               samplesPerPixel:4
+                                                      hasAlpha:YES
+                                                      isPlanar:NO
+                                                colorSpaceName:NSDeviceRGBColorSpace
+                                                  bitmapFormat:(NSBitmapFormat)0 /* RGBA, premultiplied */
+                                                   bytesPerRow:POTWide * 4
+                                                  bitsPerPixel:32];
+        CC_BREAK_IF(!bitmap);
+
+        auto data = (unsigned char*) [bitmap bitmapData];
         NSUInteger textureSize = POTWide * POTHigh * 4;
+        memset(data, 0, textureSize);
+
+        NSGraphicsContext *bitmapContext =
+            [NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap];
+        [NSGraphicsContext saveGraphicsState];
+        [NSGraphicsContext setCurrentContext:bitmapContext];
+        [stringWithAttributes drawInRect:textRect];
+        [bitmapContext flushGraphics];
+        [NSGraphicsContext restoreGraphicsState];
+
         auto dataNew = (unsigned char*)malloc(sizeof(unsigned char) * textureSize);
         if (dataNew) {
             memcpy(dataNew, data, textureSize);
@@ -333,7 +357,6 @@ static bool _initWithString(const char * text, Device::TextAlign align, const ch
             ret = true;
         }
         [bitmap release];
-        [image release];
     } while (0);
     return ret;
 }

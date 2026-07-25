@@ -42,13 +42,15 @@ THE SOFTWARE.
 #endif /* (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) */
 
 #if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
-#ifndef GLFW_EXPOSE_NATIVE_NSGL
-#define GLFW_EXPOSE_NATIVE_NSGL
-#endif
-#ifndef GLFW_EXPOSE_NATIVE_COCOA
-#define GLFW_EXPOSE_NATIVE_COCOA
-#endif
-#include "glfw3native.h"
+/* 여기서 "glfw3native.h" 를 include 하면 안 된다.
+   glfw 3.3+ 의 glfw3native.h 는 non-ObjC 번역단위에서
+   <ApplicationServices/ApplicationServices.h> (→ Carbon MacTypes.h) 를 끌어오는데,
+   MacTypes.h 가 전역 스코프에 Rect / Size 를 정의한다. 이 헤더는 cocos2d.h 에서
+   include 되므로 그 오염이 cocos 전체 + lua-bindings + libsimulator 의 모든 번역단위로
+   퍼져 cocos2d::Rect / cocos2d::Size 참조가 모호해진다.
+   실제로 필요한 것은 아래 getCocoaWindow() 가 쓰는 함수 하나뿐이라 선언만 직접 둔다.
+   (id 는 platform/CCGLView.h 가 include 하는 <objc/objc.h> 에서 온다) */
+extern "C" id glfwGetCocoaWindow(GLFWwindow* window);
 #endif // #if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
 
 NS_CC_BEGIN

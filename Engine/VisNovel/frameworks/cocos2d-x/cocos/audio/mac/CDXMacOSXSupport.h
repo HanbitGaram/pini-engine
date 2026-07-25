@@ -24,13 +24,13 @@
 
 /**
  A set of proxy classes to allow iOS audio code to run on MacOS X. CCAudioPlayer is implemented using NSSound.
- AVAudioSession is a "do nothing" class as it isn't really relevant on MacOS X.
+ CDXAVAudioSession is a "do nothing" class as it isn't really relevant on MacOS X.
  
  Limitations:
  CCAudioPlayer numberOfLoops not correctly supported.  Looping is either on or off, can not specify a specific number of loops.
  CCAudioPlayer panning not supported.
  CCAudioPlayer metering not supported.
- AVAudioSession nothing is supported, not applicable to MacOS X.
+ CDXAVAudioSession nothing is supported, not applicable to MacOS X.
  */
 
 #import <Availability.h>
@@ -40,15 +40,19 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/NSSound.h>
 
-enum AudioSessionProperties {
-	kAudioSessionProperty_OtherAudioIsPlaying,
-	kAudioSessionProperty_AudioRoute	
+/* macOS 26 SDK 의 AudioToolbox 는 AudioSession.h 를 macOS 에도 (deprecated 상태로)
+   노출한다. 그래서 원래 이름(kAudioSessionProperty_*, AudioSessionGetProperty)을 쓰면
+   열거자 중복 정의 + "API_UNAVAILABLE(macos)" 로 컴파일이 깨진다.
+   shim 을 CDX 접두어로 분리해 SDK 심볼과 충돌하지 않게 한다. */
+enum CDXAudioSessionProperties {
+	kCDXAudioSessionProperty_OtherAudioIsPlaying,
+	kCDXAudioSessionProperty_AudioRoute
 };
 #ifdef __cplusplus
 extern "C" {
-#endif	
-	
-extern OSStatus AudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *outData);    
+#endif
+
+extern OSStatus CDXAudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *outData);
 
 #ifdef __cplusplus
 }
@@ -150,7 +154,7 @@ extern OSStatus AudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *o
 - (void)audioPlayerBeginInterruption:(CCAudioPlayer *)player;
 
 /* audioPlayerEndInterruption:withFlags: is called when the audio session interruption has ended and this player had been interrupted while playing. */
-/* Currently the only flag is AVAudioSessionInterruptionFlags_ShouldResume. */
+/* Currently the only flag is CDXAVAudioSessionInterruptionFlags_ShouldResume. */
 - (void)audioPlayerEndInterruption:(CCAudioPlayer *)player withFlags:(NSUInteger)flags;
 
 /* audioPlayerEndInterruption: is called when the preferred method, audioPlayerEndInterruption:withFlags:, is not implemented. */
@@ -159,30 +163,30 @@ extern OSStatus AudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *o
 
 
 /**
- Taken from AVAudioSession.h header in AVFoundation headers
+ Taken from CDXAVAudioSession.h header in AVFoundation headers
  */
 
 /* This protocol is available with iPhone 3.0 or later */
-@protocol AVAudioSessionDelegate;
+@protocol CDXAVAudioSessionDelegate;
 @class NSError, NSString;
 
 /* values for the category property */
-extern NSString *const AVAudioSessionCategoryAmbient;
-extern NSString *const AVAudioSessionCategorySoloAmbient;
-extern NSString *const AVAudioSessionCategoryPlayback;
-extern NSString *const AVAudioSessionCategoryRecord;
-extern NSString *const AVAudioSessionCategoryPlayAndRecord;
-extern NSString *const AVAudioSessionCategoryAudioProcessing;
+extern NSString *const CDXAVAudioSessionCategoryAmbient;
+extern NSString *const CDXAVAudioSessionCategorySoloAmbient;
+extern NSString *const CDXAVAudioSessionCategoryPlayback;
+extern NSString *const CDXAVAudioSessionCategoryRecord;
+extern NSString *const CDXAVAudioSessionCategoryPlayAndRecord;
+extern NSString *const CDXAVAudioSessionCategoryAudioProcessing;
 
 enum {
-	AVAudioSessionInterruptionFlags_ShouldResume = 1
+	CDXAVAudioSessionInterruptionFlags_ShouldResume = 1
 };
 
 enum {	
-	AVAudioSessionSetActiveFlags_NotifyOthersOnDeactivation = 1
+	CDXAVAudioSessionSetActiveFlags_NotifyOthersOnDeactivation = 1
 };
 
-@interface AVAudioSession : NSObject {
+@interface CDXAVAudioSession : NSObject {
 	
 	// properties
 	NSString* category;
@@ -193,7 +197,7 @@ enum {
 	double currentHardwareSampleRate;
 	NSInteger currentHardwareInputNumberOfChannels;
 	NSInteger currentHardwareOutputNumberOfChannels;
-	id<AVAudioSessionDelegate> delegate;
+	id<CDXAVAudioSessionDelegate> delegate;
 
 @private
     __strong void *_impl;
@@ -202,7 +206,7 @@ enum {
 /* returns singleton instance */
 + (id)sharedInstance;
 
-@property(assign) id<AVAudioSessionDelegate> delegate;
+@property(assign) id<CDXAVAudioSessionDelegate> delegate;
 
 - (BOOL)setActive:(BOOL)beActive error:(NSError**)outError;
 - (BOOL)setActive:(BOOL)beActive withFlags:(NSInteger)flags error:(NSError**)outError;
@@ -223,8 +227,8 @@ enum {
 @end
 
 
-/* A protocol for delegates of AVAudioSession */
-@protocol AVAudioSessionDelegate <NSObject>
+/* A protocol for delegates of CDXAVAudioSession */
+@protocol CDXAVAudioSessionDelegate <NSObject>
 @optional 
 
 - (void)beginInterruption;

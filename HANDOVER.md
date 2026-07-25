@@ -4,12 +4,15 @@
 > 다른 세션(Opus 등)이 이어받아 작업할 수 있도록 정리한 것이다.
 > 목표: **(1) macOS에서 에디터+엔진 구동, (2) iOS 배포, (3) Android 배포.**
 
-## 0. 현재 상태 (이미 완료된 것)
+## 0. 현재 상태
 
-- 작업 브랜치: `modernize/mac-ios-android` (master에서 분기, 아직 커밋 없음)
+- 작업 브랜치: `modernize/mac-ios-android`
+- **Phase 1 (macOS arm64 네이티브 엔진 빌드) 완료. → 상세는 §9 참조.**
+  `scripts/build-deps-apple.sh` + `scripts/build-mac.sh` 두 개로 재현 가능.
 - 로컬 Python 3.13.7 (`/Library/Frameworks/Python.framework/Versions/3.13/bin/python3`)에
   PySide6 6.11.1, lupa 2.8, Pillow, openpyxl, appdirs, ply 설치 완료 (pip 네트워크 사용 가능)
-- 코드 수정은 아직 하나도 하지 않았다.
+  + cmake 4.4.0 / ninja 1.13 (pip 로 설치, 의존성 빌드에 사용)
+- 다음 작업: **Phase 2 (에디터 py3/PySide6 포팅)**. §3.5 순서대로.
 
 ## 1. 환경 사실 (검증됨)
 
@@ -272,7 +275,10 @@ Apache HttpClient jar(`android-async-http`, `httpclient-4.4.1.1` — API 23+에�
 
 ## 6. 전체 실행 계획 (우선순위 순)
 
-### Phase 1 — macOS 엔진 빌드 (가장 먼저; 다른 모든 것의 기반) — **목표는 arm64 네이티브**
+### Phase 1 — macOS 엔진 빌드 — ✅ **완료 (2026-07-25). 결과는 §9 참조**
+
+아래는 착수 당시의 계획이며, 실제 수행 결과와 계획에서 어긋난 부분은 §9에 정리했다.
+
 1. mac 타겟 Sources에 누락된 게임 C++ 추가 (§4.3-1 목록 — iOS 타겟 소스 목록을 기준으로,
    단 `VideoPlayer.cpp`가 아니라 스텁인 `VideoPlayer_iOS.cpp`를 사용)
 2. mac 타겟 헤더 경로에 `$(SRCROOT)/../Classes/openal/include` 추가 (§4.3-2)
@@ -368,3 +374,126 @@ Phase 1~4는 2015년산 코드를 현행 도구에서 **빌드되게** 만드는
 2. Phase 1부터 순서대로. 각 Phase 완료 시 이 문서의 해당 섹션에 결과를 갱신하고 커밋할 것.
 3. 빌드 로그를 통째로 붙이지 말고, 에러 유형별로 요약해 문서화할 것.
 4. 파괴적 작업(대량 삭제, force push) 전에는 사용자 확인.
+
+## 9. Phase 1 수행 결과 — macOS arm64 네이티브 (2026-07-25)
+
+### 9.1 결과
+`pini_remote-desktop.app` 이 **arm64 네이티브**로 빌드/실행되고 45674 포트를 리슨한다.
+비-시스템 동적 의존성은 없다 (`otool -L` 결과가 전부 `/usr/lib`, `/System`).
+Rosetta 중간 검증 단계(계획 4번)는 **건너뛰고 곧바로 arm64 로 갔고, 그래도 문제가 없었다.**
+
+빌드 방법:
+```
+scripts/build-deps-apple.sh     # 1회. external 의존성을 arm64 로 빌드 + 헤더 갱신
+scripts/build-mac.sh            # 앱 빌드 (Release)
+```
+산출물: `Engine/VisNovel/frameworks/runtime-src/proj.ios_mac/build/Release/pini_remote-desktop.app`
+
+> `Engine/OSX.app` 교체는 **아직 하지 않았다.** 기존 것은 x86_64 이고 실행 파일 이름도
+> `novel Mac`(번들 ID `org.cocos2dx.hellolua`)이라 지금 산출물과 구조가 다르다.
+> 에디터(`Menu.py`)가 이 경로를 `open` 으로 실행하므로, Phase 2 에서 에디터의 darwin 분기를
+> 손볼 때 (리소스 동기화 + `open --args`, §3.1) 함께 정리하는 편이 안전하다.
+
+### 9.2 사전조사(§4) 대비 정정 사항 — **다음 사람이 꼭 볼 것**
+
+1. **앱 타겟은 프리빌트를 하나도 링크하지 않고 있었다.** mac 타겟 `OTHER_LDFLAGS` 가
+   `$(_COCOS_LIB_MAC_BEGIN)/_END` 마커에만 의존하는데 이 변수는 저장소 어디에도 정의가 없다
+   (cocos-console 이 주입하던 것). 그래서 png/jpeg/freetype/chipmunk/glfw/luajit 링크 플래그를
+   프로젝트에 **명시적으로** 넣었다. §4.3-5 가 말한 `-image_base/-pagezero_size` 보존 문제는
+   arm64 로 가면서 자연히 제거.
+2. **`SDKROOT = iphoneos11.0` 하드코딩은 iOS 만의 문제가 아니다** (§4.4-3). `cocos2d_libs.xcodeproj`
+   의 **`libcocos2d Mac` 타겟에도** 걸려 있어 mac 빌드가 `unable to find sdk` 로 즉시 죽는다.
+   서브프로젝트 파일을 고치는 대신 `scripts/build-mac.sh` 의 커맨드라인 오버라이드로 처리했다.
+3. **vendored chipmunk 헤더는 6.2.x 가 아니라 7.0.1** 이다 (§4.7-2 정정). 업스트림 7.0.3 으로 빌드.
+4. **cocos2d-x 3.15.1 본체는 Xcode 26 / arm64 에서 거의 그대로 컴파일된다.** 1000개 넘는 소스 중
+   손댄 것은 아래 목록이 전부다. 이 항목이 Phase 1 의 가장 큰 리스크였는데 실제로는 작았다.
+
+### 9.3 의존성 (`scripts/build-deps-apple.sh`, 버전 고정)
+
+| 라이브러리 | 처리 | 버전 |
+|---|---|---|
+| zlib / curl / iconv / sqlite3 | **시스템 SDK `.tbd` 로 대체** (프리빌트 폐기) | macOS 26.2 SDK |
+| openssl | **의존 자체를 제거** (websockets 를 SSL 없이 빌드) | — |
+| libpng | 소스 빌드 + 헤더 갱신 | 1.6.44 (기존 1.6.16) |
+| libjpeg | libjpeg-turbo 로 교체 + 헤더 갱신 | 3.0.4 (기존 IJG 9.0) |
+| libtiff | 소스 빌드, 코덱 전부 off | 4.7.0 (기존 4.0.3) |
+| libwebp | 소스 빌드, sharpyuv 를 libwebp.a 에 병합 | 1.4.0 (기존 0.2.1) |
+| freetype | 소스 빌드 + 헤더 트리 교체 | 2.13.3 (기존 2.5.5) |
+| chipmunk | 소스 빌드 + 헤더 교체 | 7.0.3 (기존 7.0.1) |
+| glfw3 | 소스 빌드 + 헤더 교체 | 3.4 (기존 3.2.0) |
+| libwebsockets | **SSL 없이** 빌드 (게임은 WebSocket 미사용) | 2.1.0 고정 — cocos 코드가 lws 2.1 API 기준이라 올리면 깨진다 |
+| Lua VM | **LuaJIT 2.1** 브랜치. arm64 macOS 정상 동작 | v2.1 (기존 x86_64 2.0계열) |
+
+- 전부 `arm64` 단독 빌드. universal 이 필요하면 `ARCHS="arm64;x86_64" scripts/build-deps-apple.sh`.
+- 헤더와 라이브러리를 **항상 같이** 갱신한다. 특히 jpeg 9 헤더 + libjpeg-turbo 조합은 struct
+  레이아웃이 어긋나 런타임에 깨지므로 절대 섞지 말 것.
+
+### 9.4 수정한 코드 — 에러 유형별
+
+**(A) 2016년 코드 ↔ macOS 26 SDK 심볼 충돌**
+- `cocos/audio/mac/CDXMacOSXSupport.{h,mm}`, `CDAudioManager.{h,m}`
+  - macOS 26 SDK 가 `AudioToolbox/AudioSession.h` 를 macOS 에도 노출하면서 CocosDenshion 의
+    shim 과 충돌(열거자 중복 정의 + SDK 쪽 `AudioSessionGetProperty` 가 `API_UNAVAILABLE(macos)`).
+    → shim 을 `CDX` 접두어로 분리(`CDXAudioSessionGetProperty`, `kCDXAudioSessionProperty_*`).
+  - 같은 이유로 ObjC 클래스 `AVAudioSession` 이 시스템 private framework 와 이름 충돌
+    (런타임이 "may cause mysterious crashes" 경고) → `CDXAVAudioSession` 으로 개명.
+  - 덤으로 shim 이 `outData` 를 채우지 않아 호출부가 미초기화 `CFStringRef` 를 읽던 버그도 수정.
+- `cocos/2d/CCFontAtlas.cpp` — 최신 SDK 의 `iconv_t` 는 `void*` 가 아니라 `__tag_iconv_t*` →
+  `iconv()/iconv_close()` 호출에 명시 캐스팅.
+
+**(B) 의존성 버전 상승에 따른 API 변화**
+- `cocos/platform/CCGLView.h` — glfw 3.3+ 의 `glfw3native.h` 가 `<objc/objc.h>` 를 직접
+  include 하므로 cocos 의 `typedef void* id;` 와 이중 정의. Apple 에선 objc 의 진짜 `id` 를 쓰도록.
+- `cocos/platform/desktop/CCGLViewImpl-desktop.h` — **가장 파급이 컸던 건.**
+  `glfw3native.h` 가 `<ApplicationServices/...>`(→ Carbon `MacTypes.h`)를 끌어오는데, 이 헤더는
+  `cocos2d.h` 에 포함되므로 전역 `Rect`/`Size` 오염이 cocos + lua-bindings + libsimulator
+  **전 번역단위**로 퍼져 `cocos2d::Rect/Size` 참조가 모호해진다. → include 를 없애고 실제로
+  필요한 `glfwGetCocoaWindow` 선언만 직접 둠.
+- `cocos/physics/CCPhysicsWorld.cpp` — chipmunk 7.0.3 부터 `chipmunk.h` 가 `cpHastySpace.h` 를
+  자동 include 하지 않음 → 명시 include. 단 이 헤더엔 `extern "C"` 가 없어 그대로 넣으면
+  C++ 맹글링으로 링크가 깨진다 → `extern "C" { }` 로 감쌀 것.
+- `extensions/physics-nodes/CCPhysicsDebugNode.cpp` — chipmunk 7.0.3 이 내부 struct 정의를
+  `chipmunk_private.h` → `chipmunk_structs.h` 로 분리하고 `CP_PRIVATE` 매크로를 없앰.
+- `cocos/scripting/lua-bindings/manual/CCLuaStack.cpp`,
+  `runtime-src/Classes/md5/compat-5.2.{c,h}` — LuaJIT 2.1 이 Lua 5.1 의 deprecated 별칭
+  `luaL_reg` 를 제거하고, 반대로 Lua 5.2 의 `luaL_setfuncs` 를 제공한다
+  (게임 쪽 compat 구현과 duplicate symbol).
+
+**(C) 렌더링 버그 — 글자가 색 노이즈로 깨지던 문제 (mac 전용)**
+- `cocos/platform/mac/CCDevice-mac.mm` — 시스템 폰트 라벨 텍스처를 만들 때
+  `[NSImage lockFocus]` + `initWithFocusedViewRect:` 로 얻은 비트맵에서
+  `width*height*4` 바이트를 그대로 memcpy 했다. 즉 "32bpp RGBA8888, `bytesPerRow == width*4`"
+  라고 가정한 것인데, **최신 macOS 에서 이 비트맵은 채널당 16비트 딥컬러로 돌아온다.**
+  실측(162x28 라벨): `bitsPerPixel=64`, `bytesPerRow=1296` (가정값 32 / 648의 정확히 2배).
+  샘플 크기와 stride 가 동시에 어긋나 글자가 자홍/녹색 노이즈로 깨졌다.
+  → 픽셀 크기·행 간격·샘플 크기·채널 순서를 직접 지정한 `NSBitmapImageRep` 에 그리도록 변경.
+  검증: 같은 조건으로 두 경로를 재현해 비교한 결과 불투명 픽셀 중 R/G/B 가 어긋난 비율이
+  옛 경로 89.2% → 새 경로 0.0%.
+  (iOS 쪽 `CCDevice-ios.mm` 에 같은 문제가 있는지는 Phase 3 에서 확인할 것.)
+
+**(D) 게임 코드 (runtime-src/Classes)**
+- `AppDelegate.h` — mac 에서는 안드로이드용 `Classes/openal` 헤더 대신 시스템
+  `<OpenAL/al.h>` 를 쓰도록(실제 `alc*` 호출은 안드로이드 분기에만 있음).
+- `AppDelegate.cpp` — mac 도 iOS 처럼 **스텁** `VideoPlayer_iOS.h` 를 쓰도록.
+  (ffmpeg 프리빌트가 android/windows 32bit 만 있어 mac 은 애초에 불가 — §4.5)
+
+**(E) `pini_remote.xcodeproj` (mac 타겟만)**
+- 누락돼 있던 게임 C++ 13개를 Sources 에 추가 (§4.3-1 지적대로 mac 타겟은 게임 코드를
+  전혀 컴파일하지 않고 있었다): `ATL/TextInput/AsyncLoaderManager/SpriteAsync/utils/
+  lua_utils/AppDelegateEvent/VideoPlayer_iOS` + `md5/*`.
+- Resources 에 `src`, `res` 폴더 레퍼런스 추가 (iOS 타겟에는 있었으나 mac 에는 없었음).
+- 존재하지 않는 `HEADER_SEARCH_PATHS` 항목 `../Classes/protobuf-lite` 제거.
+- 현행 SDK 에 없는 `usr/lib/*.dylib` 참조 3개(libz/libcurl/libiconv) 제거 → `-l` 플래그로.
+- `ARCHS = arm64`, `MACOSX_DEPLOYMENT_TARGET = 11.0`, `CLANG_CXX_LANGUAGE_STANDARD = gnu++14`,
+  프리빌트 `LIBRARY_SEARCH_PATHS` + 링크 플래그 추가, `-image_base/-pagezero_size` 제거.
+
+### 9.5 알려진 제약 (의도된 것)
+- **비디오 재생 비활성.** 전 플랫폼 스텁 방침(§4.5). 복원은 장기 로드맵 5번.
+- **WebSocket 은 `ws://` 만.** openssl 을 되살리지 않으려고 SSL 없이 빌드. 게임 Lua 는 미사용.
+- **arm64 전용.** 인텔 맥 지원이 필요하면 §9.3 의 universal 옵션으로 의존성을 다시 만들고
+  `pini_remote.xcodeproj` 의 `ARCHS` 를 되돌린 뒤, LuaJIT x86_64 슬라이스에 대해서만
+  `OTHER_LDFLAGS[arch=x86_64]` 로 `-image_base/-pagezero_size` 를 되살려야 한다 (§4.7-3).
+- `external/*/prebuilt/mac/*.a` 는 이번에 arm64 산출물로 **교체**되어 커밋되었다.
+  장기적으로는 CI 로 옮기고 저장소에서 빼는 것이 맞다 (장기 로드맵 2번).
+- cocos 쪽 수정은 §4.8 의 "업스트림 대비 커스텀 패치" 목록에 이번 것도 포함시켜야 한다.
+  구분을 위해 이번 수정은 전부 주석에 이유를 적어 두었다.

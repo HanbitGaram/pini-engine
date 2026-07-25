@@ -23,6 +23,9 @@
 
 #if CC_ENABLE_CHIPMUNK_INTEGRATION
 #include "chipmunk/chipmunk_private.h"
+// chipmunk 7.0.3 부터 내부 struct 정의(cpShape/cpCircleShape/...)가 chipmunk_private.h 에서
+// chipmunk_structs.h 로 분리되었다. 이 파일은 struct 내부 필드를 직접 읽으므로 필요하다.
+#include "chipmunk/chipmunk_structs.h"
 #endif
 
 #include "base/ccTypes.h"
@@ -73,7 +76,8 @@ static void DrawShape(cpShape *shape, DrawNode *renderer)
     cpBody *body = cpShapeGetBody(shape);
     Color4F color = ColorForBody(body);
     
-    switch (shape->CP_PRIVATE(klass)->type)
+    // chipmunk 7.0.3 에는 CP_PRIVATE 매크로가 없다 (필드명이 그냥 klass)
+    switch (shape->klass->type)
     {
         case CP_CIRCLE_SHAPE:
         {

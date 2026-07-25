@@ -247,7 +247,7 @@ static BOOL configured = FALSE;
 
 -(BOOL) audioSessionSetActive:(BOOL) active {
     NSError *activationError = nil;
-    if ([[AVAudioSession sharedInstance] setActive:active error:&activationError]) {
+    if ([[CDXAVAudioSession sharedInstance] setActive:active error:&activationError]) {
         _audioSessionActive = active;
         CDLOGINFO(@"Denshion::CDAudioManager - Audio session set active %i succeeded", active); 
         return YES;
@@ -260,7 +260,7 @@ static BOOL configured = FALSE;
 
 -(BOOL) audioSessionSetCategory:(NSString*) category {
     NSError *categoryError = nil;
-    if ([[AVAudioSession sharedInstance] setCategory:category error:&categoryError]) {
+    if ([[CDXAVAudioSession sharedInstance] setCategory:category error:&categoryError]) {
         CDLOGINFO(@"Denshion::CDAudioManager - Audio session set category %@ succeeded", category); 
         return YES;
     } else {
@@ -326,7 +326,7 @@ static BOOL configured = FALSE;
 -(BOOL) isOtherAudioPlaying {
     UInt32 isPlaying = 0;
     UInt32 varSize = sizeof(isPlaying);
-    AudioSessionGetProperty (kAudioSessionProperty_OtherAudioIsPlaying, &varSize, &isPlaying);
+    CDXAudioSessionGetProperty (kCDXAudioSessionProperty_OtherAudioIsPlaying, &varSize, &isPlaying);
     return (isPlaying != 0);
 }
 
@@ -339,7 +339,7 @@ static BOOL configured = FALSE;
             //Share audio with other app
             CDLOGINFO(@"Denshion::CDAudioManager - Audio will be shared");
             //_audioSessionCategory = kAudioSessionCategory_AmbientSound;
-            _audioSessionCategory = AVAudioSessionCategoryAmbient;
+            _audioSessionCategory = CDXAVAudioSessionCategoryAmbient;
             willPlayBackgroundMusic = NO;
             break;
             
@@ -347,7 +347,7 @@ static BOOL configured = FALSE;
             //Use audio exclusively - if other audio is playing it will be stopped
             CDLOGINFO(@"Denshion::CDAudioManager -  Audio will be exclusive");
             //_audioSessionCategory = kAudioSessionCategory_SoloAmbientSound;
-            _audioSessionCategory = AVAudioSessionCategorySoloAmbient;
+            _audioSessionCategory = CDXAVAudioSessionCategorySoloAmbient;
             willPlayBackgroundMusic = YES;
             break;
             
@@ -355,7 +355,7 @@ static BOOL configured = FALSE;
             //Use audio exclusively, ignore mute switch and sleep
             CDLOGINFO(@"Denshion::CDAudioManager -  Media playback mode, audio will be exclusive");
             //_audioSessionCategory = kAudioSessionCategory_MediaPlayback;
-            _audioSessionCategory = AVAudioSessionCategoryPlayback;
+            _audioSessionCategory = CDXAVAudioSessionCategoryPlayback;
             willPlayBackgroundMusic = YES;
             break;
             
@@ -363,7 +363,7 @@ static BOOL configured = FALSE;
             //Use audio exclusively, ignore mute switch and sleep, has inputs and outputs
             CDLOGINFO(@"Denshion::CDAudioManager -  Play and record mode, audio will be exclusive");
             //_audioSessionCategory = kAudioSessionCategory_PlayAndRecord;
-            _audioSessionCategory = AVAudioSessionCategoryPlayAndRecord;
+            _audioSessionCategory = CDXAVAudioSessionCategoryPlayAndRecord;
             willPlayBackgroundMusic = YES;
             break;
             
@@ -372,12 +372,12 @@ static BOOL configured = FALSE;
             if ([self isOtherAudioPlaying]) {
                 CDLOGINFO(@"Denshion::CDAudioManager - Other audio is playing audio will be shared");
                 //_audioSessionCategory = kAudioSessionCategory_AmbientSound;
-                _audioSessionCategory = AVAudioSessionCategoryAmbient;
+                _audioSessionCategory = CDXAVAudioSessionCategoryAmbient;
                 willPlayBackgroundMusic = NO;
             } else {
                 CDLOGINFO(@"Denshion::CDAudioManager - Other audio is not playing audio will be exclusive");
                 //_audioSessionCategory = kAudioSessionCategory_SoloAmbientSound;
-                _audioSessionCategory = AVAudioSessionCategorySoloAmbient;
+                _audioSessionCategory = CDXAVAudioSessionCategorySoloAmbient;
                 willPlayBackgroundMusic = YES;
             }    
             
@@ -405,7 +405,7 @@ static BOOL configured = FALSE;
     if ((self = [super init])) {
         
         //Initialise the audio session 
-        AVAudioSession* session = [AVAudioSession sharedInstance];
+        CDXAVAudioSession* session = [CDXAVAudioSession sharedInstance];
         session.delegate = self;
     
         _mode = mode;
@@ -483,8 +483,8 @@ static BOOL configured = FALSE;
     CFStringRef newAudioRoute;
     UInt32 propertySize = sizeof (CFStringRef);
     
-    AudioSessionGetProperty (
-                             kAudioSessionProperty_AudioRoute,
+    CDXAudioSessionGetProperty (
+                             kCDXAudioSessionProperty_AudioRoute,
                              &propertySize,
                              &newAudioRoute
                              );
@@ -622,7 +622,7 @@ static BOOL configured = FALSE;
     _resigned = YES;
     
     //Set the audio session to one that allows sharing so that other audio won't be clobbered on resume
-    [self audioSessionSetCategory:AVAudioSessionCategoryAmbient];
+    [self audioSessionSetCategory:CDXAVAudioSessionCategoryAmbient];
     
     switch (_resignBehavior) {
             
@@ -728,7 +728,7 @@ static BOOL configured = FALSE;
 #if __CC_PLATFORM_IOS >= 40000
 -(void) endInterruptionWithFlags:(NSUInteger)flags {
     CDLOGINFO(@"Denshion::CDAudioManager - interruption ended with flags %i",flags);
-    if (flags == AVAudioSessionInterruptionFlags_ShouldResume) {
+    if (flags == CDXAVAudioSessionInterruptionFlags_ShouldResume) {
         [self audioSessionResumed];
     }    
 }

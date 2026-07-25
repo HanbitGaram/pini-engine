@@ -145,7 +145,7 @@ typedef enum {
  - Frameworks: OpenAL, AudioToolbox, AVFoundation
  @since v0.8
  */
-@interface CDAudioManager : NSObject <CDLongAudioSourceDelegate, CDAudioInterruptProtocol, AVAudioSessionDelegate> {
+@interface CDAudioManager : NSObject <CDLongAudioSourceDelegate, CDAudioInterruptProtocol, CDXAVAudioSessionDelegate> {
     CDSoundEngine        *soundEngine;
     CDLongAudioSource    *backgroundMusic;
     NSMutableArray        *audioSourceChannels;

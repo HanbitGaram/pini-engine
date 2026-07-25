@@ -28,6 +28,13 @@
 #include <climits>
 
 #include "chipmunk/chipmunk_private.h"
+// chipmunk 7.0.1 의 chipmunk.h 는 cpHastySpace.h 를 자동으로 include 했지만 7.0.3 부터는
+// 빠졌다. 이 파일이 cpHastySpace* 를 직접 쓰므로 명시적으로 include 한다.
+// cpHastySpace.h 자체에는 extern "C" 가 없다 (chipmunk.h 의 extern "C" 블록 안에서
+// include 되는 것을 전제로 한 헤더) → C++ 맹글링을 막기 위해 직접 감싼다.
+extern "C" {
+#include "chipmunk/cpHastySpace.h"
+}
 #include "physics/CCPhysicsBody.h"
 #include "physics/CCPhysicsShape.h"
 #include "physics/CCPhysicsContact.h"

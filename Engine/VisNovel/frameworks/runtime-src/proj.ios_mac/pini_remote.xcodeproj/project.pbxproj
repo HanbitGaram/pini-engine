@@ -86,6 +86,21 @@
 		F293B3D915EB7BE500256477 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F293B3D815EB7BE500256477 /* Foundation.framework */; };
 		F293B3DB15EB7BE500256477 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F293B3DA15EB7BE500256477 /* CoreGraphics.framework */; };
 		F293BB9C15EB831F00256477 /* AppDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F293BB7E15EB831F00256477 /* AppDelegate.cpp */; };
+		AA00CAFE1F85876300486901 /* AppDelegateEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8AF41F858761004869B3 /* AppDelegateEvent.cpp */; };
+		AA00CAFE1F85876300486902 /* TextInput.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8AF71F858761004869B3 /* TextInput.cpp */; };
+		AA00CAFE1F85876300486903 /* AsyncLoaderManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8AF91F858762004869B3 /* AsyncLoaderManager.cpp */; };
+		AA00CAFE1F85876300486904 /* lua_utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8AFA1F858762004869B3 /* lua_utils.cpp */; };
+		AA00CAFE1F85876300486905 /* SpriteAsync.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8AFC1F858762004869B3 /* SpriteAsync.cpp */; };
+		AA00CAFE1F85876300486906 /* ATL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B001F858762004869B3 /* ATL.cpp */; };
+		AA00CAFE1F85876300486907 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B031F858763004869B3 /* utils.cpp */; };
+		AA00CAFE1F85876300486908 /* VideoPlayer_iOS.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B0D1F858840004869B3 /* VideoPlayer_iOS.cpp */; };
+		AA00CAFE1F85876300486909 /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B151F858B8B004869B3 /* md5.c */; };
+		AA00CAFE1F8587630048690A /* compat-5.2.c in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B161F858B8B004869B3 /* compat-5.2.c */; };
+		AA00CAFE1F8587630048690B /* ldes56.c in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B181F858B8B004869B3 /* ldes56.c */; };
+		AA00CAFE1F8587630048690C /* des56.c in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B1A1F858B8B004869B3 /* des56.c */; };
+		AA00CAFE1F8587630048690D /* md5lib.c in Sources */ = {isa = PBXBuildFile; fileRef = C77C8B1B1F858B8B004869B3 /* md5lib.c */; };
+		AA00CAFE1F8587630048690E /* src in Resources */ = {isa = PBXBuildFile; fileRef = C77C8B241F858C11004869B3 /* src */; };
+		AA00CAFE1F8587630048690F /* res in Resources */ = {isa = PBXBuildFile; fileRef = C77C8B231F858C11004869B3 /* res */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -294,16 +309,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ED545A8B1B68A24500C3958E /* libiconv.dylib in Frameworks */,
 				DA9E7D881AB1ABCC004B27C8 /* Security.framework in Frameworks */,
 				9FF504861A5E881200AFDA55 /* libsimulator Mac.a in Frameworks */,
 				15427CEE198F24AF00DC375D /* libcocos2d Mac.a in Frameworks */,
 				15427CEC198F24A600DC375D /* libluacocos2d Mac.a in Frameworks */,
-				15A8A4881834C90F00142BE0 /* libcurl.dylib in Frameworks */,
 				50D7C97017EBBEEC005D0B91 /* IOKit.framework in Frameworks */,
 				50D7C96E17EBBEE6005D0B91 /* AppKit.framework in Frameworks */,
 				50D7C96C17EBBEDF005D0B91 /* OpenGL.framework in Frameworks */,
-				5023813717EBBCE400990C9B /* libz.dylib in Frameworks */,
 				5023813E17EBBCE400990C9B /* QuartzCore.framework in Frameworks */,
 				5023814017EBBCE400990C9B /* OpenAL.framework in Frameworks */,
 				5023814117EBBCE400990C9B /* AudioToolbox.framework in Frameworks */,
@@ -695,6 +707,8 @@
 				9FF504841A5E87B100AFDA55 /* ConsoleWindow.xib in Resources */,
 				5023817617EBBE3400990C9B /* Icon.icns in Resources */,
 				9FFC07361A4A764100AED399 /* MainMenu.xib in Resources */,
+				AA00CAFE1F8587630048690E /* src in Resources */,
+				AA00CAFE1F8587630048690F /* res in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -754,6 +768,19 @@
 				5023813317EBBCE400990C9B /* AppDelegate.cpp in Sources */,
 				9FF504851A5E87B100AFDA55 /* ConsoleWindowController.m in Sources */,
 				C07828F818B4D72E00BD2287 /* main.m in Sources */,
+				AA00CAFE1F85876300486901 /* AppDelegateEvent.cpp in Sources */,
+				AA00CAFE1F85876300486902 /* TextInput.cpp in Sources */,
+				AA00CAFE1F85876300486903 /* AsyncLoaderManager.cpp in Sources */,
+				AA00CAFE1F85876300486904 /* lua_utils.cpp in Sources */,
+				AA00CAFE1F85876300486905 /* SpriteAsync.cpp in Sources */,
+				AA00CAFE1F85876300486906 /* ATL.cpp in Sources */,
+				AA00CAFE1F85876300486907 /* utils.cpp in Sources */,
+				AA00CAFE1F85876300486908 /* VideoPlayer_iOS.cpp in Sources */,
+				AA00CAFE1F85876300486909 /* md5.c in Sources */,
+				AA00CAFE1F8587630048690A /* compat-5.2.c in Sources */,
+				AA00CAFE1F8587630048690B /* ldes56.c in Sources */,
+				AA00CAFE1F8587630048690C /* des56.c in Sources */,
+				AA00CAFE1F8587630048690D /* md5lib.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -837,7 +864,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				ARCHS = arm64;
 				COMBINE_HIDPI_IMAGES = YES;
 				CONFIGURATION_BUILD_DIR = ../../../runtime/mac;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -848,21 +875,39 @@
 					GLFW_EXPOSE_NATIVE_NSGL,
 					"$(inherited)",
 				);
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/../Classes/protobuf-lite",
 					"$(SRCROOT)/../Classes",
 					"$(SRCROOT)/../../cocos2d-x/tools/simulator/libsimulator/lib",
 				);
 				INFOPLIST_FILE = mac/Info.plist;
-				LIBRARY_SEARCH_PATHS = "";
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../cocos2d-x/external/png/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/jpeg/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/tiff/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/webp/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/freetype2/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/chipmunk/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/glfw3/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/websockets/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/lua/luajit/prebuilt/mac",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
-					"-image_base",
-					100000000,
-					"-pagezero_size",
-					10000,
-					"$(_COCOS_LIB_MAC_BEGIN)",
-					"$(_COCOS_LIB_MAC_END)",
+					"-lpng",
+					"-ljpeg",
+					"-ltiff",
+					"-lwebp",
+					"-lfreetype",
+					"-lchipmunk",
+					"-lglfw3",
+					"-lwebsockets",
+					"-lluajit",
+					"-lz",
+					"-liconv",
+					"-lcurl",
+					"-lsqlite3",
 				);
 				PRODUCT_NAME = "pini_remote-desktop";
 				SDKROOT = macosx;
@@ -874,7 +919,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				ARCHS = arm64;
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = mac/Prefix.pch;
@@ -883,21 +928,39 @@
 					GLFW_EXPOSE_NATIVE_NSGL,
 					"$(inherited)",
 				);
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
 				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/../Classes/protobuf-lite",
 					"$(SRCROOT)/../Classes",
 					"$(SRCROOT)/../../cocos2d-x/tools/simulator/libsimulator/lib",
 				);
 				INFOPLIST_FILE = mac/Info.plist;
-				LIBRARY_SEARCH_PATHS = "";
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../cocos2d-x/external/png/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/jpeg/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/tiff/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/webp/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/freetype2/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/chipmunk/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/glfw3/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/websockets/prebuilt/mac",
+					"$(SRCROOT)/../../cocos2d-x/external/lua/luajit/prebuilt/mac",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
-					"-image_base",
-					100000000,
-					"-pagezero_size",
-					10000,
-					"$(_COCOS_LIB_MAC_BEGIN)",
-					"$(_COCOS_LIB_MAC_END)",
+					"-lpng",
+					"-ljpeg",
+					"-ltiff",
+					"-lwebp",
+					"-lfreetype",
+					"-lchipmunk",
+					"-lglfw3",
+					"-lwebsockets",
+					"-lluajit",
+					"-lz",
+					"-liconv",
+					"-lcurl",
+					"-lsqlite3",
 				);
 				PRODUCT_NAME = "pini_remote-desktop";
 				SDKROOT = macosx;

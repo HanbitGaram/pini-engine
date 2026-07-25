@@ -36,7 +36,11 @@ THE SOFTWARE.
 #endif /* (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) */
 
 #if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
-typedef void* id;
+/* 원래는 `typedef void* id;` 였다. glfw 3.3+ 의 glfw3native.h 는 non-ObjC 번역단위에서
+   <objc/objc.h> 를 직접 include 하므로(3.2 까지는 자체적으로 void* 를 typedef 했다)
+   그대로 두면 'id' 가 'struct objc_object *' 와 'void *' 로 이중 정의되어 컴파일이 깨진다.
+   Apple 플랫폼에서는 objc 의 진짜 id 를 쓰는 것이 맞다. */
+#include <objc/objc.h>
 #endif /* (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) */
 
 /** There are some Resolution Policy for Adapt to the screen. */

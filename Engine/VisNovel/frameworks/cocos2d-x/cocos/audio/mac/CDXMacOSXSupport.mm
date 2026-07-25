@@ -30,17 +30,22 @@
 #import "audio/include/SimpleAudioEngine.h"
 #import "audio/mac/CocosDenshion.h"
 
-NSString * const AVAudioSessionCategoryAmbient = @"AVAudioSessionCategoryAmbient";
-NSString *const AVAudioSessionCategorySoloAmbient = @"AVAudioSessionCategorySoloAmbient";
-NSString *const AVAudioSessionCategoryPlayback = @"AVAudioSessionCategoryPlayback";
-NSString *const AVAudioSessionCategoryRecord = @"AVAudioSessionCategoryRecord";
-NSString *const AVAudioSessionCategoryPlayAndRecord = @"AVAudioSessionCategoryPlayAndRecord";
-NSString *const AVAudioSessionCategoryAudioProcessing = @"AVAudioSessionCategoryAudioProcessing";
+NSString * const CDXAVAudioSessionCategoryAmbient = @"CDXAVAudioSessionCategoryAmbient";
+NSString *const CDXAVAudioSessionCategorySoloAmbient = @"CDXAVAudioSessionCategorySoloAmbient";
+NSString *const CDXAVAudioSessionCategoryPlayback = @"CDXAVAudioSessionCategoryPlayback";
+NSString *const CDXAVAudioSessionCategoryRecord = @"CDXAVAudioSessionCategoryRecord";
+NSString *const CDXAVAudioSessionCategoryPlayAndRecord = @"CDXAVAudioSessionCategoryPlayAndRecord";
+NSString *const CDXAVAudioSessionCategoryAudioProcessing = @"CDXAVAudioSessionCategoryAudioProcessing";
 
-OSStatus AudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *outData) {
+OSStatus CDXAudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *outData) {
 	//TODO: set outData appropriately
+	// 호출부(CDAudioManager)가 outData 를 그대로 읽으므로 최소한 0 으로 채워 준다.
+	// (예전 구현은 손대지 않고 반환만 해서 CFStringRef 미초기화 값을 읽었다.)
+	if (outData != NULL && ioDataSize != NULL) {
+		memset(outData, 0, *ioDataSize);
+	}
 	return 0;
-}    
+}
 
 @implementation CCAudioPlayer
 
@@ -162,9 +167,9 @@ OSStatus AudioSessionGetProperty(UInt32 inID, UInt32 *ioDataSize, void *outData)
 @end
 
 /**
- A "do nothing" implementation - AVAudioSession is not really relevant to Mac OS X.
+ A "do nothing" implementation - CDXAVAudioSession is not really relevant to Mac OS X.
  */
-@implementation AVAudioSession
+@implementation CDXAVAudioSession
 @synthesize delegate, category, preferredHardwareSampleRate, preferredIOBufferDuration;
 @synthesize inputIsAvailable, currentHardwareSampleRate, currentHardwareInputNumberOfChannels, currentHardwareOutputNumberOfChannels;
 

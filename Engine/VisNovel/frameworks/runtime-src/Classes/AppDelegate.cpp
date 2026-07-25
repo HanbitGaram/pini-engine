@@ -17,10 +17,13 @@
 
 #include "lua_utils.h"
 
-#if (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
-#include "VideoPlayer.h"
-#else
+/* ffmpeg 프리빌트는 android(armeabi) 와 windows(x86) 만 있고 mac/iOS 용이 없다.
+   iOS 와 마찬가지로 mac 도 전 메서드가 no-op 인 VideoPlayer_iOS 스텁을 쓴다.
+   (비디오 재생 기능 비활성 — HANDOVER.md §4.5) */
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_IOS || CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
 #include "VideoPlayer_iOS.h"
+#else
+#include "VideoPlayer.h"
 #endif
 
 #include "TextInput.h"

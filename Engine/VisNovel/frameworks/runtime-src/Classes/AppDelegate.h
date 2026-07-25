@@ -7,7 +7,13 @@
 #include <list>
 using namespace std;
 
-#if (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
+#if (CC_TARGET_PLATFORM == CC_PLATFORM_MAC)
+/* macOS 에는 Classes/openal (안드로이드용 OpenAL Soft 헤더) 를 쓰지 않고 시스템
+   OpenAL.framework 를 쓴다. 실제 alc* 호출은 안드로이드 분기에만 있고, mac 에서는
+   ALCdevice/ALCcontext 타입 선언만 필요하다. */
+#include <OpenAL/al.h>
+#include <OpenAL/alc.h>
+#elif (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
 #include "AL/al.h"
 #include "AL/alc.h"
 #endif
