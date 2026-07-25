@@ -146,10 +146,13 @@ class RemoteClient(QTcpSocket):
 			if line == None:
 				line = 0
 			print("line=",line)
-			# 4바이트 고정 필드. QByteArray.resize() 로 늘린 부분은 초기화가 보장되지 않으므로
-			# 직접 0 으로 채운다. 엔진 쪽은 tonumber(recv(input,4)) 로 읽으며 NUL 패딩을 허용한다.
+			# 4바이트 고정 필드. QByteArray.resize() 로 늘린 부분은 초기화가 보장되지 않아
+			# 직접 채워야 하는데, 채움 문자를 NUL 로 하면 안 된다:
+			# 엔진은 이 필드를 tonumber() 로 읽는데 LuaJIT 2.1 의 tonumber 는
+			# "0\x00\x00\x00" 을 nil 로 돌려준다 (Lua 5.1 은 0 으로 받아 준다).
+			# 그러면 엔진이 씬을 시작하지 못하고 검은 화면만 남는다. 공백으로 채운다.
 			startLine = QByteArray.number(line)
-			startLine.append(b"\x00" * (4 - startLine.size()))
+			startLine.append(b" " * (4 - startLine.size()))
 			byte.append(startLine)
 			# FILES 는 lua 테이블에서 온 값이라 lupa 가 bytes 로 준다 (str 이면 인코딩).
 			sceneFile = FILES[playScene]

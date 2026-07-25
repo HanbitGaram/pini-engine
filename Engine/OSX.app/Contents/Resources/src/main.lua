@@ -39,6 +39,31 @@ fileUtil:addSearchPath(fileUtil:getWritablePath().."font")
 fileUtil:setPopupNotify(false)
 
 local ROOT_PATH = fileUtil:getWritablePath()
+
+-- 씬 파일 이름은 에디터가 "원본 파일명을 base64" 로 만든다.
+-- 그런데 base64 하기 전의 인코딩 기준이 시기마다 달랐다:
+--   py2/윈도우 에디터 = cp949,  py3 포팅 이후 = utf-8
+-- 그래서 같은 "메인.lnx" 라도 lnx_uN7Azg__(cp949) / lnx_66mU7J24(utf-8) 로 이름이 다르다.
+-- 예전 코드는 cp949 쪽 이름을 하드코딩해 둬서, py3 에디터가 만든 프로젝트에서는
+-- 씬을 영영 찾지 못하고 검은 화면만 나왔다. 실제로 존재하는 쪽을 골라 쓴다.
+local function resolveSceneName(candidates)
+	for _, name in ipairs(candidates) do
+		if fileUtil:isFileExist(ROOT_PATH..name..".lua") then
+			return name
+		end
+	end
+	return nil
+end
+
+local MAIN_SCENE = {
+	"scene/lnx_66mU7J24",        -- utf-8 "메인"
+	"scene/lnx_uN7Azg__",        -- cp949 "메인"
+}
+local PREMAIN_SCENE = {
+	"scene/lnx_7ZSE66as66mU7J24", -- utf-8 "프리메인"
+	"scene/lnx_x8G4rrjewM4_",     -- cp949 "프리메인"
+}
+
 local md5 = require("md5")
 require "base64"
 require "trycatch"
@@ -277,7 +302,17 @@ local function LanX_start(start,line)
 			require("PiniLib")()
 			XVM:Awake()
 			XVM:call("libdef.lnx")
-			XVM:call("scene/lnx_x8G4rrjewM4_") -- "프리메인.lnx"
+			-- "프리메인.lnx" — 있으면 본편보다 먼저 실행되는 선택 사항 씬이다.
+			-- 파일명은 에디터가 base64 로 만드는데, 인코딩 기준이 시기마다 달랐다:
+			-- py2/윈도우 시절엔 cp949, py3 포팅 후엔 utf-8. 그래서 이름을 하나로 하드코딩하면
+			-- 한쪽에서는 절대 못 찾는다. 게다가 존재 여부를 확인하지 않고 호출하고 있어서,
+			-- 파일이 없으면(샘플 프로젝트를 포함해 대부분이 그렇다) require 가 예외를 던지고
+			-- 이 try 블록이 통째로 중단돼 **본편 씬이 아예 시작되지 않았다** (증상: 검은 화면).
+			-- 두 이름을 모두 확인하고, 없으면 조용히 건너뛴다.
+			local premain = resolveSceneName(PREMAIN_SCENE)
+			if premain then
+				XVM:call(premain)
+			end
 			if line == 0 then line = 1 end
 
 			socket.select(nil, nil, 0.5)
@@ -355,7 +390,7 @@ local function initRemoteScene(width,height)
 	consoleBack = pBackgroundButton
 
 	--BUTTONS
-	pButton = makeBtn("저장된 파일 실행하기",function() LanX_start("scene/lnx_uN7Azg__") end)
+	pButton = makeBtn("저장된 파일 실행하기",function() LanX_start(resolveSceneName(MAIN_SCENE) or MAIN_SCENE[1]) end)
 	pButton:setPosition(cc.p (width/2, height/2-100))
 	pLayer:addChild(pButton)
 
@@ -448,7 +483,7 @@ local function main()
 	try{
 	function()
 		require("_export_execute_")
-		LanX_start("scene/lnx_uN7Azg__") -- 메인.lnx
+		LanX_start(resolveSceneName(MAIN_SCENE) or MAIN_SCENE[1]) -- "메인.lnx"
 	end,
 	catch {
 	function(error)
@@ -655,7 +690,11 @@ local function main()
 								updateListMax = #updateList
 								send(input,"ulst",json.encode(updateList))
 							elseif order == "ufin" then
-								startLine = tonumber(recv(input,4))
+								-- 4바이트 고정 필드라 뒤가 공백(또는 예전 클라이언트의 NUL)로 채워져 온다.
+								-- LuaJIT 2.1 의 tonumber 는 NUL 이 섞이면 nil 을 돌려주기 때문에
+								-- 그대로 쓰면 바로 아래 문자열 연결에서 죽고 씬이 시작되지 않는다(검은 화면).
+								-- 패딩을 걷어내고, 그래도 숫자가 아니면 0 으로 본다.
+								startLine = tonumber((recv(input,4):gsub("[%z%s]+$",""))) or 0
 								startScene = recv(input,clients[idx][2]-4)
 								console("업데이트 완료!")
 								console("startLine="..startLine)
