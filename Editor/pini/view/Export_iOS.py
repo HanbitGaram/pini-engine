@@ -35,6 +35,10 @@ EXPORT_SCRIPT = os.path.join(REPO_ROOT, "scripts", "export-ios.sh")
 # 끝난 뒤에야 xcodebuild 가 거부한다.
 BUNDLE_ID_RE = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 
+# 셸 스크립트는 터미널용으로 색을 입혀 출력한다. 그대로 위젯에 넣으면 제어문자가
+# 글자로 보인다.
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
 EXPORT_METHODS = [
 	("개발용 (등록된 기기에만 설치)", "development"),
 	("Ad Hoc (등록된 기기 배포)", "ad-hoc"),
@@ -270,7 +274,7 @@ class ExportIOSWindow(ModalWindow):
 		inst.compileProj(False, after_compile)
 
 	def log(self, text):
-		self.logview.appendPlainText(text)
+		self.logview.appendPlainText(ANSI_RE.sub("", text))
 		bar = self.logview.verticalScrollBar()
 		bar.setValue(bar.maximum())
 
@@ -278,6 +282,7 @@ class ExportIOSWindow(ModalWindow):
 		AssetLibraryWindow().watcherOn = True
 		AssetLibraryWindow().updateWatcher()
 
+		tail = ANSI_RE.sub("", tail).strip()
 		if ok:
 			self.log("\n완료: %s" % tail)
 			self.GUI_FIN_EXPORT()
@@ -324,7 +329,10 @@ class ExportIOSWindow(ModalWindow):
 				iconpath = Settings()["iconpath"] or iconpath
 
 		self.Layout.clear()
-		self.icon_path = iconpath if os.path.isfile(iconpath) else ""
+		# 스크립트는 REPO_ROOT 에서 실행되므로 상대경로는 거기서 풀린다.
+		# 기본값 "resource/export_default_icon.png" 는 에디터 작업 디렉터리
+		# (Editor/pini) 기준이라 그대로 넘기면 못 찾는다.
+		self.icon_path = os.path.abspath(iconpath) if os.path.isfile(iconpath) else ""
 
 		self.Layout.label("<b>1. 앱 정보 설정</b>")
 		self.Layout.hline()
