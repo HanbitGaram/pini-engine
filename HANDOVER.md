@@ -1317,3 +1317,94 @@ Lua 코드를 한 줄도 돌리기 전에 이미 상태가 망가져 있었다.
 
 > 참고: `Editor/pini` 에는 `CompilingThread`(컴파일)와 `ComplieThread`(프리뷰 실행)가
 > 따로 있다. 이름이 한 글자 차이라 크래시 리포트에서 헷갈리기 쉽다. 오타는 원본 그대로 뒀다.
+
+---
+
+# 17. 엔진 SIGSEGV (해제된 노드에 Lua 가 접근)
+
+```
+Thread 0 (main) EXC_BAD_ACCESS at 0x0
+  0  lua_cocos2dx_Node_removeAllChildrenWithCleanup(lua_State*) + 96
+  1  lj_BC_FUNCC
+  2  lj_ff_coroutine_resume
+  3  lua_pcall
+  4  cocos2d::LuaStack::executeFunctionByHandler
+  5  cocos2d::LuaEngine::handleScheduler
+  6  cocos2d::TimerScriptHandler::trigger
+  ...
+```
+
+## 17.1 무엇이 일어났나
+
+크래시 지점의 기계어를 보면 답이 나온다.
+
+```
+ldr  x8, [x20]        ← x20 = 0x0. 여기서 폴트
+ldr  x8, [x8, #0x2A0]
+mov  x0, x20
+blr  x8
+```
+
+**객체 포인터(x20)가 NULL 인데 거기서 vtable 을 읽는다.** 자동 생성 바인딩은 이렇게 생겼다.
+
+```cpp
+cobj = (cocos2d::Node*)tolua_tousertype(tolua_S,1,0);
+#if COCOS2D_DEBUG >= 1
+    if (!cobj) { tolua_error(...); return 0; }   ← 릴리스에서는 사라진다
+#endif
+    ...
+    cobj->removeAllChildrenWithCleanup(arg0);
+```
+
+`tolua_tousertype` 은 C++ 객체가 이미 해제된 userdata 에 NULL 을 돌려준다.
+**널 검사가 `COCOS2D_DEBUG >= 1` 로 묶여 있고, desktop 타겟은 Debug/Release 어느
+설정에서도 `COCOS2D_DEBUG` 를 정의하지 않는다.** 그래서 Lua 에러 대신 세그폴트가 난다.
+
+## 17.2 경로
+
+스택의 `TimerScriptHandler` 는 `main.lua` 의 네트워크 스케줄러다.
+
+```
+main.lua:764   scheduler:scheduleScriptFunc(networkUpdate, 0.1, false)
+main.lua:273   pini:Clear()          ← 에디터가 새 실행을 보내면
+PiniAPI.lua    pini:ClearScene() → LatestScene:clear()
+PiniAPI.lua    self.layer:removeAllChildren(true)   ← layer 의 C++ 객체가 이미 없다
+```
+
+`pini._regist_.LatestScene` 은 Lua 래퍼다. 씬이 교체되면 C++ `cc.Scene`/`cc.Layer` 는
+해제되는데 이 래퍼는 그대로 남는다. 다음에 에디터가 실행을 보내면 그 유령을 건드린다.
+
+**`Scene:clear()` 는 이미 `try{}catch{}` 로 감싸여 있다.** 원 저자들도 여기가 실패할 수
+있다는 걸 알고 있었다는 뜻이다. `COCOS2D_DEBUG` 가 켜져 있었다면 바인딩이 Lua 에러를
+던지고 그 catch 가 받아서 넘어갔을 것이다. 릴리스에서는 검사가 없으니 프로세스가 죽는다.
+**세그폴트는 Lua 에러가 아니라서 try/catch 로 못 잡는다.**
+
+## 17.3 조치
+
+`Scene:clear()` 에서 **자기 씬이 아직 실행 중인 씬인지 확인**하고, 아니면 아무것도 하지
+않는다. 이미 사라진 씬은 정리할 것도 없다.
+
+```lua
+local running = director and director:getRunningScene()
+if running ~= nil and self.scene ~= nil and self.scene ~= running then
+    return
+end
+```
+
+userdata 비교는 메서드 호출이 아니라서 해제된 객체여도 안전하다.
+
+## 17.4 한계와 후속
+
+- **재현해서 확인한 수정이 아니다.** 크래시 리포트에서 역추적했다. 스택·기계어·호출
+  경로가 모두 맞아떨어지지만, 같은 시나리오를 다시 만들어 검증하지는 못했다.
+- 이 가드는 `Scene:clear()` 한 곳만 막는다. 같은 유령 참조 문제는 원리상
+  `PiniAPI.lua` 의 다른 `self.layer`/`self.node` 사용처에서도 날 수 있다
+  (3551·3565·3577·3758 행의 `removeAllChildren` 등).
+- **근본 해결은 두 가지 중 하나다.**
+  1. 씬이 교체될 때 `pini._regist_.LatestScene` 을 확실히 끊는다 (라이프사이클 수정)
+  2. 릴리스 엔진 빌드에도 바인딩 널 검사를 살린다. 이 부류가 전부 catch 가능한 Lua
+     에러로 바뀐다. 대신 `COCOS2D_DEBUG=1` 은 CCASSERT·GL 에러 검사까지 켜므로
+     성능·로그 노이즈를 감수해야 한다.
+- 다시 죽으면 **Debug 설정으로 엔진을 빌드해** Lua 트레이스백을 받는 게 가장 빠르다.
+  다만 desktop 타겟은 Debug 에도 `COCOS2D_DEBUG` 가 없으므로
+  `GCC_PREPROCESSOR_DEFINITIONS` 에 직접 넣어야 한다.

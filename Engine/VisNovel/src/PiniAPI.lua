@@ -2108,6 +2108,19 @@ function Scene:clear()
 	if OnPreview then
 
 	else
+		-- 이미 사라진 씬이면 손대지 않는다.
+		--
+		-- self.layer 는 C++ cc.Layer 를 가리키는 userdata 다. 씬이 교체되면 C++ 객체는
+		-- 해제되는데 이 Lua 래퍼는 그대로 남는다. 그 상태로 메서드를 부르면 tolua 가
+		-- NULL 을 넘기고, 릴리스 빌드에는 널 검사가 없어서(자동 생성 바인딩의 검사가
+		-- `#if COCOS2D_DEBUG >= 1` 로 묶여 있다) 그대로 SIGSEGV 가 난다.
+		-- 아래 try/catch 로도 못 잡는다. 세그폴트는 Lua 에러가 아니다. (HANDOVER §17)
+		local director = cc.Director:getInstance()
+		local running = director and director:getRunningScene()
+		if running ~= nil and self.scene ~= nil and self.scene ~= running then
+			return
+		end
+
 		try{
 			function()
 				self.layer:removeAllChildren(true)
