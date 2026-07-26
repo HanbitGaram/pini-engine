@@ -175,7 +175,12 @@ class ProjectController(QObject):
 		################################################
 		def readAll(fpath):
 			fp = QFile(fpath)
-			fp.open(QIODevice.ReadOnly | QIODevice.Text)
+			# QFile.open() 은 실패해도 예외를 던지지 않고 False 를 돌려준다. 그대로
+			# QTextStream 에 물리면 Qt 가 "device not open" 경고를 찍고 빈 문자열을
+			# 준다. 없어도 되는 파일이 몇 개 있어서(pini_ver.inf 는 업데이터가 만들고,
+			# 빌드 캐시는 첫 빌드 때 없다) 이 경고가 계속 뜬다. 조용히 빈 값으로 처리한다.
+			if not fp.open(QIODevice.ReadOnly | QIODevice.Text):
+				return ""
 
 			fin = QTextStream(fp)
 			fin.setEncoding(QStringConverter.Utf8)

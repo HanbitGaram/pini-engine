@@ -24,17 +24,19 @@ class AboutPiniWindow(ModalWindow):
 
 		compilerVersion = ""
 		try:
+			# pini_ver.inf 는 업데이터(Editor/updator)가 만드는 파일이라 소스 체크아웃
+			# 에는 없다. open() 은 예외 대신 False 를 주므로 반환값을 봐야 한다.
+			# 안 그러면 Qt 가 "device not open" 경고를 찍는다.
 			versionDir = os.path.join("..","pini_ver.inf")
 			fp = QFile(versionDir)
-			fp.open(QIODevice.ReadOnly | QIODevice.Text)
+			if fp.open(QIODevice.ReadOnly | QIODevice.Text):
+				fin = QTextStream(fp)
+				fin.setEncoding(QStringConverter.Utf8)
 
-			fin = QTextStream(fp)
-			fin.setEncoding(QStringConverter.Utf8)
+				compilerVersion = fin.readAll()
 
-			compilerVersion = fin.readAll()
-
-			fin = None
-			fp.close()
+				fin = None
+				fp.close()
 		except Exception as e:
 			pass
 
