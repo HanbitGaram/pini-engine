@@ -29,50 +29,60 @@ class ComplieThread(QThread):
 			if self.sceneCtrl :
 				protocol = ScriptGraphicsProtocol()
 				#protocol.clear()
-				
+
 				num = self.previewBlockNumber
 
 				while len(self.compiledCommand) <= num:
 					# 아직 컴파일이 덜 되었으므로, 기다립니다.
 					self.msleep(50)
 
-				curCmd = self.compiledCommand[num]
-				curBlock = False
-				
-				if isdebug : 
-					print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+				# 아래 insert/build 는 한 덩어리로 취급해야 한다. 중간에 메인 스레드가
+				# luaInit() 으로 LuaRuntime 을 갈아치우면 앞선 insert 가 만든 객체가
+				# 사라진 lua_State 를 가리키게 되고 프로세스가 SIGSEGV 로 죽는다.
+				# (락은 대기 중에는 잡지 않는다. 위 msleep 루프까지 감싸면 그동안
+				#  메인 스레드의 Lua 접근이 통째로 막힌다.)
+				with protocol.luaLock():
+					self._buildPreview(protocol, num, isdebug)
 
-				if curCmd["isInBlock"] :
-					curBlock = curCmd["blockIdx"]
-
-				_usedBlock = []
-				_usedSemi  = []
-				for i in range(0,num+1):
-					cmd = self.compiledCommand[i]
-					compiled = cmd["compiled"]
-					if compiled : 
-						if (not curBlock) and cmd["isInBlock"] : 
-							continue
-						if curBlock:
-							if not cmd["isInBlock"]:
-								continue
-
-						if (curBlock != False) and curBlock != cmd["blockIdx"]:
-							continue
-
-						if curBlock != cmd["blockIdx"]:
-							if cmd["blockIdx"] in _usedBlock : 
-								continue
-							_usedBlock.append(cmd["blockIdx"])
-
-						protocol.insert(compiled[0])
-						if isdebug : 
-							print(">", compiled[0])
-
-				protocol.build(self.sceneCtrl)
 		except Exception as e:
 			traceback.print_exc(file=sys.stdout)
 			print(">>ComplieThread",e)
+
+	def _buildPreview(self, protocol, num, isdebug):
+		curCmd = self.compiledCommand[num]
+		curBlock = False
+
+		if isdebug :
+			print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+
+		if curCmd["isInBlock"] :
+			curBlock = curCmd["blockIdx"]
+
+		_usedBlock = []
+		_usedSemi  = []
+		for i in range(0,num+1):
+			cmd = self.compiledCommand[i]
+			compiled = cmd["compiled"]
+			if compiled :
+				if (not curBlock) and cmd["isInBlock"] :
+					continue
+				if curBlock:
+					if not cmd["isInBlock"]:
+						continue
+
+				if (curBlock != False) and curBlock != cmd["blockIdx"]:
+					continue
+
+				if curBlock != cmd["blockIdx"]:
+					if cmd["blockIdx"] in _usedBlock :
+						continue
+					_usedBlock.append(cmd["blockIdx"])
+
+				protocol.insert(compiled[0])
+				if isdebug :
+					print(">", compiled[0])
+
+		protocol.build(self.sceneCtrl)
 
 class CompilingThread(QThread):
 	# 프리뷰에 표기하기 위한 목적의 컴파일 스레드입니다.

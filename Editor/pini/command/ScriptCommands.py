@@ -7,6 +7,7 @@ from PySide6.QtCore import *
 from command.FontManager import FontManager
 import re
 import os
+import threading
 
 from controller.ProjectController import ProjectController
 from compiler import *
@@ -301,6 +302,19 @@ class GraphicsProtocolObject(object):
 		def buildPath(self):
 			return (ProjectController().path+"/build/")
 
+def _luaGuarded(func):
+	"""메서드 전체를 프로토콜의 Lua 락으로 감싼다.
+
+	lupa 자체 락은 호출 하나만 보호한다. 여기 메서드들은 lua.execute 와
+	_LuaObject 접근을 여러 번 이어서 하므로 그 사이에 다른 스레드가 끼어들면
+	안 된다."""
+	def wrapper(self, *args, **kwargs):
+		with self._luaLock:
+			return func(self, *args, **kwargs)
+	wrapper.__name__ = func.__name__
+	wrapper.__doc__ = func.__doc__
+	return wrapper
+
 class ScriptGraphicsProtocol(object):
 	_instance = None
 	_isInit   = False
@@ -319,9 +333,27 @@ class ScriptGraphicsProtocol(object):
 		self.funcsInfo = None
 		self.attachNode = []
 		self.errorLog = []
+		# 이 싱글턴의 LuaRuntime 은 메인 스레드(자동완성/툴팁/프리뷰 갱신)와
+		# ComplieThread(프리뷰 빌드)가 함께 쓴다. lupa 는 호출 하나 단위로만
+		# 직렬화해 주기 때문에, 여러 호출에 걸친 작업 도중에 luaInit() 이 끼어들어
+		# self.lua 를 갈아치우면 A 런타임의 객체를 B 런타임에 쓰게 되고 lua_State 가
+		# 대롱거린다. 그 결과가 luaD_reallocstack 에서 NULL 할당자로 점프하는
+		# SIGSEGV 다. 작업 단위로 이 락을 잡아 그 창을 없앤다.
+		self._luaLock = threading.RLock()
+		self._luaRetry = 0
 		self.luaInit()
 
+	def luaLock(self):
+		"""Lua 를 여러 번 연달아 건드리는 구간을 감싸는 데 쓴다.
+
+		재진입 가능하므로 이 안에서 다른 프로토콜 메서드를 불러도 된다."""
+		return self._luaLock
+
 	def luaInit(self):
+		with self._luaLock:
+			self._luaInit()
+
+	def _luaInit(self):
 		self.lua = LuaRuntime()
 		############ FOR TEST ############
 		PROJPATH = ProjectController().path.replace(QDir.separator(),"/")
@@ -400,20 +432,29 @@ class ScriptGraphicsProtocol(object):
 			out = None
 			fp.close()
 
-			QTimer.singleShot(1000, self.luaInit)
+			# 초기화가 실패하면 1초 뒤 다시 시도한다. 다만 무한히 반복하면 그때마다
+			# 새 LuaRuntime 을 만들어 던지게 되므로 횟수를 제한한다.
+			self._luaRetry += 1
+			if self._luaRetry <= 5:
+				QTimer.singleShot(1000, self.luaInit)
+			else:
+				print("ScriptGraphicsProtocol: Lua 초기화를 5회 실패했다. errorout.txt 참고.")
 
+	@_luaGuarded
 	def XLSXClear(self):
 		try:
 			self.lua.execute("XLSX_CLEAR()")
 		except Exception as e:
 			print(e)
 
+	@_luaGuarded
 	def RefreshBuildPath(self):
 		try:
 			self.lua.execute("REFRESH_BUILD_PATH()")
 		except Exception as e:
 			print(e)
 
+	@_luaGuarded
 	def clear(self):
 		if self.XVM == None:
 			return 
@@ -441,6 +482,7 @@ class ScriptGraphicsProtocol(object):
 		self.Display = self.PiniAPI._regist_.Display
 		self.addIndex = 1
 
+	@_luaGuarded
 	def insert(self,compiled):
 		if self.XVM == None:
 			return 
@@ -537,12 +579,14 @@ class ScriptGraphicsProtocol(object):
 		lua = self.lua.globals()
 		self.funcsInfo = lua._LNXFucInfo
 
+	@_luaGuarded
 	def getFuncInfo(self):
 		if self.funcsInfo == None : 
 			self.libDef(self.XVM)
 			self.updateFuncsInfo()
 		return self.funcsInfo
 
+	@_luaGuarded
 	def build(self,sceneCtrl):
 		if self.XVM == None:
 			return 

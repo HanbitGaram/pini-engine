@@ -1236,3 +1236,84 @@ iPad multitasking.
 `UIRequiresFullScreen` 은 iOS 26 SDK 기준으로 iPad 리사이즈 정책이 바뀌면서 무시될 수
 있다. 그래서 `~ipad` 4방향 선언을 **함께** 넣었다. 둘 중 어느 쪽이 유효하든 검증은
 통과하는 조합이다. 실제 업로드 결과로 확인이 필요하다.
+
+---
+
+# 16. 에디터 SIGSEGV (lupa lua_State 손상)
+
+크래시 리포트 요지:
+
+```
+Thread 0 (main) EXC_BAD_ACCESS (SIGSEGV) at 0x0
+  0  ???                                    0x0
+  1  lua51...so  luaD_reallocstack + 64
+  2  lua51...so  lua_checkstack
+  3  lua51...so  __pyx_f_4lupa_5lua51_check_lua_stack
+  4  lua51...so  __pyx_f_4lupa_5lua51_run_lua
+  5  lua51...so  LuaRuntime_execute
+  ...  PySide::SignalManager::callPythonMetaMethod   ← Qt 시그널 슬롯에서 들어왔다
+
+Thread 12 "ComplieThread"
+  2  Python      PyThread_acquire_lock_timed         ← 같은 런타임 락을 기다리는 중
+  3  lua51...so  __pyx_f_4lupa_5lua51__LuaObject__getitem
+```
+
+## 16.1 무엇이 일어났나
+
+**PC 가 0x0 이다.** `luaD_reallocstack` 은 `global_State` 의 할당자 함수 포인터
+(`frealloc`)를 부른다. 그게 NULL 이라는 건 **`lua_State` 가 이미 해제됐거나 엉뚱한
+메모리를 가리키고 있다**는 뜻이다. 스택 크기 조정은 `run_lua` 진입 직후에 하므로,
+Lua 코드를 한 줄도 돌리기 전에 이미 상태가 망가져 있었다.
+
+그리고 **두 스레드가 동시에 lupa 안에 있다** — 메인 스레드는 `execute` 실행 중,
+`ComplieThread` 는 `_LuaObject` 접근을 위해 락 대기 중.
+
+## 16.2 원인
+
+`ScriptGraphicsProtocol` 은 싱글턴이고 `self.lua` 하나를 이렇게 공유한다.
+
+| 쓰는 쪽 | 하는 일 |
+|---|---|
+| 메인 스레드 | 자동완성·툴팁·`previewInfoUpdate` 가 `lua.globals()` 를 읽는다 |
+| `ComplieThread` | 프리뷰 빌드. `insert()` 를 여러 번 부르고 `build()` 로 마무리 |
+| 메인 스레드 | **`luaInit()` 이 `self.lua = LuaRuntime()` 로 런타임을 통째로 교체한다** |
+
+`luaInit()` 은 두 경로로 불린다. 프로젝트를 열 때(`Launcher.py`), 그리고 초기화가
+실패했을 때 `QTimer.singleShot(1000, self.luaInit)` 로 **1초마다 무한 재시도**.
+
+**lupa 의 락은 호출 하나만 보호한다.** 그런데 `insert()`/`build()`/`clear()` 는
+`lua.execute` 와 `_LuaObject` 접근을 여러 번 이어서 한다. 그 사이에 `luaInit()` 이
+끼어들면:
+
+- 앞선 `insert()` 가 만든 객체는 **A 런타임**의 것인데 뒤이은 호출은 **B 런타임**에서 돈다
+- A 런타임의 참조가 끊기면 `lua_close()` 로 `lua_State` 가 해제된다
+- 그 상태를 다시 만지는 순간 위의 NULL 점프
+
+크래시 스택이 정확히 이 모양이다. 메인 스레드가 시그널 슬롯(= `QTimer` 타임아웃일
+가능성이 높다)에서 `execute` 를 부르고 있고, 워커는 같은 런타임의 객체를 붙잡고
+락을 기다리고 있다.
+
+## 16.3 조치
+
+- `ScriptGraphicsProtocol` 에 **재진입 락(`threading.RLock`)** 을 두고,
+  Lua 를 만지는 메서드를 `@_luaGuarded` 로 감쌌다
+  (`clear`/`insert`/`build`/`XLSXClear`/`RefreshBuildPath`/`getFuncInfo`).
+  재진입이 필요한 이유: `clear()` 가 `RefreshBuildPath()` 를 부른다.
+- **`luaInit()` 도 같은 락을 잡는다.** 이게 핵심이다. 이제 빌드가 진행 중이면
+  런타임 교체가 끝날 때까지 기다린다.
+- `ComplieThread` 는 `insert` 반복 + `build` 를 **한 덩어리로** 락 안에서 돌린다
+  (`_buildPreview`). 호출 사이에 교체가 끼어들 창이 사라진다.
+  단, 컴파일을 기다리는 `msleep` 루프는 락 밖에 둔다. 그것까지 감싸면 대기하는 동안
+  메인 스레드의 Lua 접근이 통째로 막혀 에디터가 멈춘다.
+- 재시도를 **5회로 제한**했다. 실패할 때마다 새 `LuaRuntime` 을 만들어 버리는 루프였다.
+
+## 16.4 남는 것
+
+메인 스레드의 자동완성 경로(`ScriptCommands` 의 모듈 레벨 함수들이
+`ScriptGraphicsProtocol().lua.globals()` 를 읽는 곳)는 락을 잡지 않는다. 대부분
+단발성 조회라 lupa 자체 락으로 충분하고, 이번 크래시의 원인인 "여러 호출에 걸친
+작업 중 런타임 교체" 와는 무관하다. 다만 여기서도 문제가 재현되면 같은 방식으로
+`with ScriptGraphicsProtocol().luaLock():` 을 씌우면 된다.
+
+> 참고: `Editor/pini` 에는 `CompilingThread`(컴파일)와 `ComplieThread`(프리뷰 실행)가
+> 따로 있다. 이름이 한 글자 차이라 크래시 리포트에서 헷갈리기 쉽다. 오타는 원본 그대로 뒀다.
