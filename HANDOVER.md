@@ -1146,3 +1146,93 @@ scripts/purge-secrets-history.sh
 기존 앱이 Play 앱 서명(App Signing by Google Play)에 등록돼 있다면, 구글에 **업로드 키
 교체**를 요청할 수 있다. 그 경우에는 신규 등록 없이 새 키로 업데이트를 계속할 수 있으니
 새 앱을 올리기 전에 Play Console 을 먼저 확인할 것.
+
+---
+
+# 15. App Store 업로드 검증 실패 대응
+
+아카이브·서명까지는 통과했는데 App Store Connect 업로드에서 5건이 걸렸다.
+원인은 사실상 **두 가지**다.
+
+## 15.1 앱 아이콘 — 에셋 카탈로그가 없었다
+
+```
+Missing required icon file. The bundle does not contain an app icon for
+iPhone / iPod Touch of exactly '120x120' pixels ...   (iPad 152x152, iPad Pro 167x167 도 동일)
+Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing ...
+```
+
+헷갈리기 쉬운 점: **`Icon-120.png` 도 `Icon-152.png` 도 번들에 실제로 들어 있었다.**
+그런데도 "없다"고 한다. **iOS 11 이후 SDK 로 빌드한 앱은 낱개 아이콘 파일을 인정하지
+않고 에셋 카탈로그(`Assets.car`)에서만 아이콘을 찾기 때문**이다. 마지막 오류가 그 이유를
+말해 준다. 즉 4건이 한 원인이다. (167x167 은 애초에 파일 자체가 없었다.)
+
+조치:
+
+- `ios/Images.xcassets/AppIcon.appiconset/` 추가. **크기 13종을 전부** 넣었다
+  (20/29/40/58/60/76/80/87/120/152/167/180/1024). 원본은 `Engine/icon-1500.png`.
+- **알파 채널을 제거**했다. App Store 는 알파가 있는 앱 아이콘을 거부한다.
+- pbxproj: 파일 참조 + mobile 타겟 Resources 빌드 페이즈 + `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`
+
+> **단일 크기 아이콘으로는 안 된다.** Xcode 14 부터 1024 한 장만 넣으면 나머지를
+> 자동 생성해 준다고 알려져 있어서 처음엔 그렇게 했는데, 컴파일된 `Assets.car` 를
+> `xcrun assetutil --info` 로 까 보니 **1024 렌디션 하나뿐**이었다. 검증이 요구하는
+> 120/152/167 이 실제로는 없다. 크기별 png 를 명시적으로 넣어야 한다.
+- Info.plist: `CFBundleIconName = AppIcon` 추가, `CFBundleIconFile`/`CFBundleIconFiles`/
+  `CFBundleIconFiles~ipad` 삭제 (배포 타겟이 15.0 이라 하위호환 불필요),
+  의미 없어진 `UIPrerenderedIcon` 삭제
+
+### 게임별 아이콘
+
+에셋 카탈로그는 `src`/`res` 처럼 폴더 참조로 바깥을 가리킬 수 없다. Xcode 프로젝트에
+박힌 경로에서만 컴파일된다. 그래서 `ICON` 이 주어지면 **빌드 직전에 저장소의 아이콘들을
+바꿔치기하고 끝나면 되돌린다.** 되돌리기는 `trap ... EXIT` 이라 중간에 죽어도 원복된다.
+
+생성은 `scripts/make-ios-appicon.py` 가 한다. **크기 목록을 `Contents.json` 에서 읽으므로**
+목록이 두 군데로 갈라지지 않는다. 정사각형이 아닌 소스는 가운데를 잘라낸다(늘리면 일그러진다).
+
+> 이 방식은 같은 저장소에서 익스포트를 **동시에 두 개 돌리면 서로 간섭한다.**
+> 지금 워크플로에서는 문제가 없지만, CI 에서 병렬로 돌릴 거라면 워크트리를 분리해야 한다.
+
+## 15.2 iPad 멀티태스킹 방향
+
+```
+Invalid bundle. The "UIInterfaceOrientationLandscapeRight,UIInterfaceOrientationLandscapeLeft"
+orientations were provided ... but you need to include all of the "...Portrait,
+...PortraitUpsideDown, ...LandscapeLeft, ...LandscapeRight" orientations to support
+iPad multitasking.
+```
+
+타겟이 유니버설(`TARGETED_DEVICE_FAMILY = "1,2"`)인데 가로 2방향만 선언해서 걸렸다.
+
+조치:
+
+- `UISupportedInterfaceOrientations~ipad` 에 4방향을 모두 선언 (검증 통과용)
+- `UIRequiresFullScreen = true` 로 멀티태스킹 자체를 끔
+- **`RootViewController.supportedInterfaceOrientations` 를 `UIInterfaceOrientationMaskLandscape`
+  로 제한** — 원래는 `MaskAllButUpsideDown` 이었다. iPhone 은 plist 가 가로만 선언해서 결과가
+  같았지만, iPad 에 세로를 추가한 지금은 여기서 막지 않으면 **실제로 세로로 돌아가** 비주얼
+  노벨 화면이 레터박스로 깨진다.
+
+  덤으로 반환형을 `NSUInteger` → `UIInterfaceOrientationMask` 로 고쳤다. iOS 6 시절 시그니처였다.
+
+> iPhone 전용(`TARGETED_DEVICE_FAMILY = 1`)으로 바꾸면 iPad 아이콘·멀티태스킹 요구가
+> 한꺼번에 사라진다. 제품 범위를 줄이는 결정이라 하지 않았다. iPad 를 포기해도 된다면
+> 그쪽이 더 간단하다.
+
+## 15.3 빌드 후 검증 추가
+
+아카이브는 성공했는데 업로드에서 거부당하는 게 이 부류의 특징이다. `export-ios.sh` 가
+아카이브 직후에 확인하도록 했다:
+
+- `src/_export_execute_.lua` — 리소스 주입 확인 (기존)
+- **`Assets.car`** — 에셋 카탈로그가 컴파일됐는지
+- **`CFBundleIconName`** — Info.plist 키가 살아 있는지
+- **아이콘 렌디션 120/152/167** — `xcrun assetutil --info` 로 실제로 들어 있는지.
+  위의 단일 크기 함정을 잡아내는 검사다. `Assets.car` 가 있다는 것만으로는 부족하다.
+
+## 15.4 아직 확인 안 된 것
+
+`UIRequiresFullScreen` 은 iOS 26 SDK 기준으로 iPad 리사이즈 정책이 바뀌면서 무시될 수
+있다. 그래서 `~ipad` 4방향 선언을 **함께** 넣었다. 둘 중 어느 쪽이 유효하든 검증은
+통과하는 조합이다. 실제 업로드 결과로 확인이 필요하다.

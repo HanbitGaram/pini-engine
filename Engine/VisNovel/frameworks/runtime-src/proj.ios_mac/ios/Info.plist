@@ -8,80 +8,48 @@
 	<string>${PRODUCT_NAME}</string>
 	<key>CFBundleExecutable</key>
 	<string>${EXECUTABLE_NAME}</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.p.p</string>
-	<key>CFBundleIconFile</key>
-	<string>Icon-57.png</string>
-	<key>CFBundleIconFiles</key>
-	<array>
-		<string>Icon-29</string>
-		<string>Icon-40</string>
-		<string>Icon-50</string>
-		<string>Icon-57</string>
-		<string>Icon-58</string>
-		<string>Icon-72</string>
-		<string>Icon-76</string>
-		<string>Icon-80</string>
-		<string>Icon-87</string>
-		<string>Icon-100</string>
-		<string>Icon-114</string>
-		<string>Icon-120</string>
-		<string>Icon-144</string>
-		<string>Icon-152</string>
-		<string>Icon-180</string>
-	</array>
-	<key>CFBundleIconFiles~ipad</key>
-	<array>
-		<string>Icon-29</string>
-		<string>Icon-40</string>
-		<string>Icon-50</string>
-		<string>Icon-57</string>
-		<string>Icon-58</string>
-		<string>Icon-72</string>
-		<string>Icon-76</string>
-		<string>Icon-80</string>
-		<string>Icon-87</string>
-		<string>Icon-100</string>
-		<string>Icon-114</string>
-		<string>Icon-120</string>
-		<string>Icon-144</string>
-		<string>Icon-152</string>
-		<string>Icon-180</string>
-	</array>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>${PRODUCT_NAME}</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- 스토리보드가 없으면 iOS 가 최신 기기에서 앱을 레터박스로 축소해 띄운다. -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIPrerenderedIcon</key>
-	<true/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<dict>
 		<key>accelerometer</key>
 		<true/>
-		<!-- 엔진은 OpenGL ES 2.0 렌더러를 쓴다. 예전 값이던 opengles-1 은 ES1.1 지원을
-		     요구하는 뜻이라 최신 기기에서 설치가 막히고 앱스토어에서도 거부된다. -->
 		<key>opengles-2</key>
 		<true/>
 	</dict>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UIStatusBarHidden</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
 </plist>

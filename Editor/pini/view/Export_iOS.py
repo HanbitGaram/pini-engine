@@ -96,6 +96,7 @@ class ExportIOSWindow(ModalWindow):
 	def __init__(self, src=None, parent=None):
 		self.export_thread = None
 		self.result_path = ""
+		self.icon_path = ""
 		super(ExportIOSWindow, self).__init__(parent)
 		self.setWindowTitle("iOS 익스포트")
 
@@ -172,6 +173,19 @@ class ExportIOSWindow(ModalWindow):
 		if path:
 			self.savePath.setText(path)
 
+	def find_icon(self):
+		path, _ = QFileDialog.getOpenFileName(
+			parent=self, caption="앱 아이콘", filter="이미지 (*.png *.jpg *.jpeg)")
+		if not path:
+			return
+		inst = ProjectController()
+		with Settings("IOS_EXPORT"):
+			with Settings(inst.path):
+				Settings()["iconpath"] = path
+		self.icon_path = path
+		self.appIcon.setPixmap(QPixmap(path).scaled(
+			60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
 	def open_export_dir(self):
 		QDesktopServices.openUrl(QUrl.fromLocalFile(self.result_path))
 
@@ -245,6 +259,8 @@ class ExportIOSWindow(ModalWindow):
 				"TEAM_ID": team_id,
 				"METHOD": method,
 			}
+			if self.icon_path and os.path.isfile(self.icon_path):
+				env["ICON"] = self.icon_path
 			self.result_path = outdir
 			self.export_thread = ExportThread(env, self)
 			self.export_thread.logLine.connect(self.log)
@@ -293,6 +309,7 @@ class ExportIOSWindow(ModalWindow):
 		build_no = "1"
 		team_id = ""
 		method = "development"
+		iconpath = "resource/export_default_icon.png"
 
 		inst = ProjectController()
 		with Settings("IOS_EXPORT"):
@@ -304,35 +321,48 @@ class ExportIOSWindow(ModalWindow):
 				build_no = Settings()["build"] or build_no
 				team_id = Settings()["team"] or team_id
 				method = Settings()["method"] or method
+				iconpath = Settings()["iconpath"] or iconpath
 
 		self.Layout.clear()
+		self.icon_path = iconpath if os.path.isfile(iconpath) else ""
+
 		self.Layout.label("<b>1. 앱 정보 설정</b>")
 		self.Layout.hline()
 		self.Layout.gap(3)
 
-		with Layout.VBox():
-			with Layout.HBox():
-				self.Layout.label("저장위치").setFixedWidth(90)
-				self.savePath = self.Layout.input(savepath, None)
-				self.Layout.button("...", self.btn_find_dist_path).setFixedHeight(20)
-			with Layout.HBox():
-				self.Layout.label("게임명").setFixedWidth(90)
-				self.saveGameName = self.Layout.input(gamename, None)
-			with Layout.HBox():
-				self.Layout.label("번들 ID").setFixedWidth(90)
-				self.saveBundleId = self.Layout.input(bundleid, None)
-			with Layout.HBox():
-				self.Layout.label("버전").setFixedWidth(90)
-				self.saveVersion = self.Layout.input(version, None)
-			with Layout.HBox():
-				self.Layout.label("빌드번호").setFixedWidth(90)
-				self.saveBuildNo = self.Layout.input(build_no, None)
-			with Layout.HBox():
-				self.Layout.label("Apple 팀 ID").setFixedWidth(90)
-				self.saveTeamId = self.Layout.input(team_id, None)
-			with Layout.HBox():
-				self.Layout.label("배포 방식").setFixedWidth(90)
-				self.saveMethod = self.Layout.combo([v[0] for v in EXPORT_METHODS])
+		with Layout.HBox():
+			with Layout.VBox():
+				with Layout.HBox():
+					self.Layout.label("저장위치").setFixedWidth(90)
+					self.savePath = self.Layout.input(savepath, None)
+					self.Layout.button("...", self.btn_find_dist_path).setFixedHeight(20)
+				with Layout.HBox():
+					self.Layout.label("게임명").setFixedWidth(90)
+					self.saveGameName = self.Layout.input(gamename, None)
+				with Layout.HBox():
+					self.Layout.label("번들 ID").setFixedWidth(90)
+					self.saveBundleId = self.Layout.input(bundleid, None)
+				with Layout.HBox():
+					self.Layout.label("버전").setFixedWidth(90)
+					self.saveVersion = self.Layout.input(version, None)
+				with Layout.HBox():
+					self.Layout.label("빌드번호").setFixedWidth(90)
+					self.saveBuildNo = self.Layout.input(build_no, None)
+				with Layout.HBox():
+					self.Layout.label("Apple 팀 ID").setFixedWidth(90)
+					self.saveTeamId = self.Layout.input(team_id, None)
+				with Layout.HBox():
+					self.Layout.label("배포 방식").setFixedWidth(90)
+					self.saveMethod = self.Layout.combo([v[0] for v in EXPORT_METHODS])
+				self.Layout.spacer()
+
+			self.Layout.gap(5)
+
+			with Layout.VBox():
+				self.appIcon = self.Layout.img(iconpath)
+				self.appIcon.setFixedSize(60, 60)
+				self.Layout.button("...", self.find_icon).setFixedHeight(20)
+				self.Layout.spacer()
 
 		names = [v[1] for v in EXPORT_METHODS]
 		if method in names:

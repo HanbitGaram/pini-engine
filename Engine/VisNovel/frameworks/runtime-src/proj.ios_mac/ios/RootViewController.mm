@@ -72,12 +72,19 @@
 }
 
 
-// For ios6, use supportedInterfaceOrientations & shouldAutorotate instead
-#ifdef __IPHONE_6_0
-- (NSUInteger) supportedInterfaceOrientations{
-    return UIInterfaceOrientationMaskAllButUpsideDown;
+// 가로 고정. 세로에서는 비주얼 노벨 화면이 레터박스로 깨진다.
+//
+// Info.plist 의 UISupportedInterfaceOrientations~ipad 에는 4방향을 모두 선언해 뒀는데,
+// 그건 App Store 검증이 iPad 멀티태스킹을 이유로 요구하기 때문이다("you need to include
+// all of the ... orientations to support iPad multitasking"). 선언만 하고 실제 회전은
+// 여기서 막는다. 멀티태스킹 자체는 UIRequiresFullScreen 으로 꺼져 있다.
+//
+// 원래는 UIInterfaceOrientationMaskAllButUpsideDown 이었다. iPhone 은 plist 가
+// 가로만 선언해서 결과가 같았지만, iPad 에 세로가 추가된 지금은 여기서 막지 않으면
+// 실제로 세로로 돌아간다.
+- (UIInterfaceOrientationMask) supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskLandscape;
 }
-#endif
 
 - (BOOL) shouldAutorotate {
     return YES;
